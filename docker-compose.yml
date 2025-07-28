@@ -3,12 +3,9 @@ version: "3.8"
 services:
   postgres:
     image: postgres:17.5-alpine
-    environment:
-      POSTGRES_USER: risk
-      POSTGRES_PASSWORD: dev
-      POSTGRES_DB: riskdb
+    env_file: .env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U risk -d riskdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d riskdb"]
       interval: 10s
       retries: 5
     ports:
