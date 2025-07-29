@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class EpssScoreDto {

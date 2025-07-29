@@ -1,13 +1,19 @@
 package com.finki.vladislavangelovski.common.dto;
 
 import com.finki.vladislavangelovski.common.model.Reference;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 @Data
+@Builder(toBuilder = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class CveEntryDto {
     private String cveId;
     private String source;
