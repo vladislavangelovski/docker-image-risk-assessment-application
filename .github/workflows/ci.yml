@@ -15,7 +15,7 @@ env:
   REGISTRY: ghcr.io
   ORG: ${{ github.repository_owner }}
   SHA_TAG: sha-${{ github.sha }}
-  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name }}
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
 
 jobs:
   build-and-push:
@@ -68,8 +68,8 @@ jobs:
       - name: Build & push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/Dockerfile
+          context: .
+          file: ./cve-store-service/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ matrix.service }}:${{ env.SHA_TAG }}
