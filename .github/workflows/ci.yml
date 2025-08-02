@@ -15,7 +15,7 @@ env:
   REGISTRY: ghcr.io
   ORG: ${{ github.repository_owner }}
   SHA_TAG: sha-${{ github.sha }}
-  RELEASE_TAG: ${{ github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && substr(github.ref, 11) || '' }}
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name }}
 
 jobs:
   build-and-push:
