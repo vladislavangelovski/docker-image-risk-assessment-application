@@ -11,12 +11,19 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@RequiredArgsConstructor
+
 public class DefaultScanOrchestrator implements ScanOrchestrator {
     private final TrivyInvoker invoker;
     private final TrivyParser parser;
     private final ScanCache cache;
     private final ScanProperties properties;
+
+    public DefaultScanOrchestrator(TrivyInvoker invoker, TrivyParser parser, ScanCache cache, ScanProperties props) {
+        this.invoker = invoker;
+        this.parser = parser;
+        this.cache = cache;
+        this.properties = props;
+    }
 
     @Override
     public ScanResult scan(ScanRequest request) throws ScannerException {
