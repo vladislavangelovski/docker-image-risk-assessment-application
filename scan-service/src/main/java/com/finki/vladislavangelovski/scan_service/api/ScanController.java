@@ -15,8 +15,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/scans")
 @RequiredArgsConstructor
 public class ScanController {
-    private final ScanOrchestrator orchestrator;
-    private final ScanCache cache;
+    //private final ScanOrchestrator orchestrator;
+    //private final ScanCache cache;
 
     /**
      * POST /api/v1/scans  (sync MVP)
