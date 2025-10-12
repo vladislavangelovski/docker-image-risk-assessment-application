@@ -11,7 +11,7 @@ Content-Type: application/json
 }
 
 ### After you get scanId, fetch normalized
-GET http://localhost:8080/api/v1/scans/879e40f5-7954-45d1-b68e-71ce7d0126e5
+GET http://localhost:8080/api/v1/scans/f86f60a0-a4be-4b7c-907e-d81f767781b7
 
 ### Fetch raw Trivy JSON
-GET http://localhost:8080/api/v1/scans/b9313596-7835-49d9-965e-a9dd567ef6d4?raw=true
+GET http://localhost:8080/api/v1/scans/f86f60a0-a4be-4b7c-907e-d81f767781b7?raw=true

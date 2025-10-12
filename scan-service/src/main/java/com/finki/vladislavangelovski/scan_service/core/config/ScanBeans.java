@@ -6,6 +6,7 @@ import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.TrivyInvoker;
 import com.finki.vladislavangelovski.scan_service.core.TrivyParser;
 import com.finki.vladislavangelovski.scan_service.core.impl.*;
+import com.finki.vladislavangelovski.scan_service.core.persistence.ScanPersistence;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,7 +41,12 @@ public class ScanBeans {
     }
 
     @Bean
-    public ScanOrchestrator scanOrchestrator(TrivyInvoker trivyInvoker, TrivyParser trivyParser, ScanCache scanCache, ScanProperties scanProperties) {
-        return new DefaultScanOrchestrator(trivyInvoker, trivyParser, scanCache, scanProperties);
+    public ScanOrchestrator scanOrchestrator(TrivyInvoker trivyInvoker,
+                                             TrivyParser trivyParser,
+                                             ScanCache scanCache,
+                                             ScanProperties scanProperties,
+                                             ScanPersistence scanPersistence) {
+        return new DefaultScanOrchestrator(
+                trivyInvoker, trivyParser, scanCache, scanProperties, scanPersistence);
     }
 }

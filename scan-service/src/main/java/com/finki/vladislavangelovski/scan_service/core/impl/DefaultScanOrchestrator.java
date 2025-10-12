@@ -3,6 +3,7 @@ package com.finki.vladislavangelovski.scan_service.core.impl;
 import com.finki.vladislavangelovski.scan_service.api.dto.*;
 import com.finki.vladislavangelovski.scan_service.core.*;
 import com.finki.vladislavangelovski.scan_service.core.config.ScanProperties;
+import com.finki.vladislavangelovski.scan_service.core.persistence.ScanPersistence;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Duration;
@@ -17,12 +18,14 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
     private final TrivyParser parser;
     private final ScanCache cache;
     private final ScanProperties properties;
+    private final ScanPersistence scanPersistence;
 
-    public DefaultScanOrchestrator(TrivyInvoker invoker, TrivyParser parser, ScanCache cache, ScanProperties props) {
+    public DefaultScanOrchestrator(TrivyInvoker invoker, TrivyParser parser, ScanCache cache, ScanProperties props, ScanPersistence scanPersistence) {
         this.invoker = invoker;
         this.parser = parser;
         this.cache = cache;
         this.properties = props;
+        this.scanPersistence = scanPersistence;
     }
 
     @Override
@@ -77,7 +80,7 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
                 summary,
                 findings
         );
-
+        scanPersistence.save(scanId, normalized, output.rawJson());
         Duration ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
         cache.put(scanId, normalized, output.rawJson(), ttl);
 
