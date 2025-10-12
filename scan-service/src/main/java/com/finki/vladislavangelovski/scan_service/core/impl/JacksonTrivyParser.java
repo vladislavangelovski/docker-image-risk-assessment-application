@@ -37,12 +37,18 @@ public class JacksonTrivyParser implements TrivyParser {
         // Basic identity fields
         String imageName = optText(root, "ArtifactName", null);
         String digest = null;
-        JsonNode metadata = root.path("Metadata");
-        if (!metadata.isMissingNode()) {
-            digest = optText(metadata, "ImageID", null);
-            if (digest == null) digest = optText(metadata, "ArtifactID", null);
+        JsonNode repoDigests = root.get("RepoDigests");
+        if (repoDigests != null && repoDigests.isArray() && repoDigests.size() > 0 && repoDigests.get(0).isTextual()) {
+            digest = repoDigests.get(0).asText();   // "nginx@sha256:..."
         }
-        if (digest == null) digest = optText(root, "ArtifactID", null);
+        if (digest == null) {
+            JsonNode metadata = root.path("Metadata");
+            if (!metadata.isMissingNode()) {
+                digest = optText(metadata, "ImageID", null);
+                if (digest == null) digest = optText(metadata, "ArtifactID", null);
+            }
+            if (digest == null) digest = optText(root, "ArtifactID", null);
+        }
 
         // Findings (NO de-dup for MVP)
         List<Finding> findings = new ArrayList<>();
