@@ -1,15 +1,20 @@
 package com.finki.vladislavangelovski.scan_service.core.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.TrivyInvoker;
 import com.finki.vladislavangelovski.scan_service.core.TrivyParser;
-import com.finki.vladislavangelovski.scan_service.core.impl.DefaultScanOrchestrator;
-import com.finki.vladislavangelovski.scan_service.core.impl.InMemoryScanCache;
-import com.finki.vladislavangelovski.scan_service.core.impl.JacksonTrivyParser;
-import com.finki.vladislavangelovski.scan_service.core.impl.ProcessTrivyInvoker;
+import com.finki.vladislavangelovski.scan_service.core.impl.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.Optional;
 
 @Configuration
 public class ScanBeans {
@@ -24,8 +29,14 @@ public class ScanBeans {
     }
 
     @Bean
-    public ScanCache scanCache() {
-        return new InMemoryScanCache();
+    public ScanCache scanCache(Optional<StringRedisTemplate> redisTemplateOpt, ObjectMapper mapper) {
+        if (redisTemplateOpt.isPresent()) {
+            System.out.println("[scan-service] Using RedisScanCache");
+            return new RedisScanCache(redisTemplateOpt.get(), mapper);
+        } else {
+            System.out.println("[scan-service] Using InMemoryScanCache");
+            return new InMemoryScanCache();
+        }
     }
 
     @Bean
