@@ -1,0 +1,22 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3s
+  flyway:
+    enabled: true
+    create-schemas: true
+    default-schema: scan
+    schemas: scan
+    table: flyway_schema_history_scan
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+
+scan:
+  cache:
+    ttl-seconds: 86400
