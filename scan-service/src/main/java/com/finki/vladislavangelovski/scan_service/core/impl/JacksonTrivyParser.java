@@ -34,63 +34,76 @@ public class JacksonTrivyParser implements TrivyParser {
             throw new ParserException("Scanner output is not valid JSON", e);
         }
 
-        // Attempt to read image/digest from common locations
+        // Basic identity fields
         String imageName = optText(root, "ArtifactName", null);
         String digest = null;
-
-        // Trivy often provides a Metadata/ImageID or ArtifactID; we'll try both
         JsonNode metadata = root.path("Metadata");
         if (!metadata.isMissingNode()) {
             digest = optText(metadata, "ImageID", null);
-            if (digest == null) {
-                digest = optText(metadata, "ArtifactID", null);
-            }
+            if (digest == null) digest = optText(metadata, "ArtifactID", null);
         }
-        if (digest == null) {
-            digest = optText(root, "ArtifactID", null);
-        }
+        if (digest == null) digest = optText(root, "ArtifactID", null);
 
-        // Collect findings (de-duplicated by {VulnerabilityID, PkgName, InstalledVersion, Target})
-        Map<String, Finding> unique = new LinkedHashMap<>();
+        // Findings (NO de-dup for MVP)
+        List<Finding> findings = new ArrayList<>();
         Map<Severity, Integer> bySeverity = new EnumMap<>(Severity.class);
-        for (Severity severity : Severity.values()) {
-            bySeverity.put(severity, 0);
-        }
+        for (Severity s : Severity.values()) bySeverity.put(s, 0);
         int fixAvailable = 0;
 
         JsonNode results = root.path("Results");
         if (results.isArray()) {
             for (JsonNode result : results) {
-                String target = optText(result, "Target", ""); // keep context if available
-                JsonNode vulns = result.path("Vulnerabilities");
-                if (vulns.isArray()) {
-                    for (JsonNode vuln : vulns) {
-                        Finding f = toFinding(vuln, target);
-                        if (f == null) {
-                            continue;
-                        }
+                String target = optText(result, "Target", "");
+                JsonNode vulns = result.get("Vulnerabilities"); // use get() so null stays null
+                if (vulns != null && vulns.isArray()) {
+                    for (JsonNode v : vulns) {
+                        String vulnId = optText(v, "VulnerabilityID", null);
+                        if (isBlank(vulnId)) continue;
 
-                        // Dedup key: (CVE, pkg, installed, target)
-                        String key = String.join("|",
-                                nvl(f.cveId()),
-                                nvl(f.pkg()),
-                                nvl(f.installedVersion()),
-                                nvl(f.sourceTarget())
-                                );
-                        if (!unique.containsKey(key)) {
-                            unique.put(key, f);
-                            // Summary math
-                            Severity severity = f.severity() != null ? f.severity() : Severity.UNKNOWN;
-                            bySeverity.put(severity, bySeverity.getOrDefault(severity, 0) + 1);
-                            if (f.fixedVersion() != null && !f.fixedVersion().isBlank()) {
-                                fixAvailable++;
+                        String pkg = optText(v, "PkgName", null);
+                        String installed = optText(v, "InstalledVersion", null);
+                        String fixed = optText(v, "FixedVersion", null);
+
+                        Severity severity = parseSeverity(optText(v, "Severity", null));
+                        String severitySource = optText(v, "SeveritySource", null);
+
+                        Cvss cvss = extractCvss(v.path("CVSS"));
+
+                        // references: PrimaryURL + References[]
+                        Set<String> refs = new LinkedHashSet<>();
+                        String primary = optText(v, "PrimaryURL", null);
+                        if (!isBlank(primary)) refs.add(primary);
+                        JsonNode refsArr = v.get("References");
+                        if (refsArr != null && refsArr.isArray()) {
+                            for (JsonNode r : refsArr) {
+                                if (r.isTextual()) {
+                                    String url = r.asText();
+                                    if (!isBlank(url)) refs.add(url);
+                                }
                             }
                         }
+
+                        findings.add(new Finding(
+                                vulnId,
+                                pkg,
+                                installed,
+                                emptyToNull(fixed),
+                                severity != null ? severity : Severity.UNKNOWN,
+                                emptyToNull(severitySource),
+                                cvss,
+                                List.copyOf(refs),
+                                emptyToNull(target)
+                        ));
+
+                        // Summary math
+                        Severity sev = severity != null ? severity : Severity.UNKNOWN;
+                        bySeverity.put(sev, bySeverity.getOrDefault(sev, 0) + 1);
+                        if (!isBlank(fixed)) fixAvailable++;
                     }
                 }
             }
         }
-        List<Finding> findings = new ArrayList<>(unique.values());
+
         return new ParsedScan(
                 imageName,
                 digest,
@@ -99,6 +112,7 @@ public class JacksonTrivyParser implements TrivyParser {
                 fixAvailable
         );
     }
+
 
     private Finding toFinding(JsonNode vuln, String target) {
         String vulnId = optText(vuln, "VulnerabilityID", null);
@@ -157,7 +171,7 @@ public class JacksonTrivyParser implements TrivyParser {
         // }
         // Strategy: pick "nvd" first; else pick vendor entry with highest V3Score (fallback V2Score).
         Cvss nvd = readCvssEntry("nvd", cvssRoot.get("nvd"));
-        if (nvd == null) {
+        if (nvd != null) {
             return nvd;
         }
 
@@ -170,7 +184,7 @@ public class JacksonTrivyParser implements TrivyParser {
                 continue;
             }
             Cvss c = readCvssEntry(name, cvssRoot.get(name));
-            if (c == null) {
+            if (c != null) {
                 candidates.add(c);
             }
         }
@@ -218,7 +232,7 @@ public class JacksonTrivyParser implements TrivyParser {
         }
         else {
             JsonNode v2s = node.get("V2Score");
-            if (v2s != null && v3s.isNumber()) {
+            if (v2s != null && v2s.isNumber()) {
                 score = v2s.decimalValue();
                 JsonNode v2v = node.get("V2Vector");
                 if (v2v != null && v2v.isTextual()) {
@@ -248,10 +262,13 @@ public class JacksonTrivyParser implements TrivyParser {
         }
     }
 
-    private static String optText(JsonNode node, String field, String defaultValue) {
+    private static String optText(JsonNode node, String field, String def) {
         JsonNode n = node.get(field);
-        return (n != null && n.isNumber()) ? n.asText() : defaultValue;
+        if (n == null || n.isNull()) return def;
+        if (n.isTextual() || n.isNumber() || n.isBoolean()) return n.asText();
+        return def;
     }
+
 
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();

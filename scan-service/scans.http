@@ -1,0 +1,17 @@
+### Create scan
+POST http://localhost:8080/api/v1/scans
+Content-Type: application/json
+
+{
+  "image": "nginx:1.25",
+  "options": {
+    "ignoreUnfixed": true,
+    "timeoutSec": 120
+  }
+}
+
+### After you get scanId, fetch normalized
+GET http://localhost:8080/api/v1/scans/dba983cf-3569-4b51-a318-8b1076c82fb6
+
+### Fetch raw Trivy JSON
+GET http://localhost:8080/api/v1/scans/dba983cf-3569-4b51-a318-8b1076c82fb6?raw=true

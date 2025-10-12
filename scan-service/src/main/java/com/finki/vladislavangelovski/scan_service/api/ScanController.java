@@ -47,7 +47,7 @@ public class ScanController {
      */
     @GetMapping("{scanId}")
     public ResponseEntity<?> get(
-            @PathVariable UUID scanId,
+            @PathVariable("scanId") UUID scanId,
             @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw
     ) {
         return cache.get(scanId).
