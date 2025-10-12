@@ -1,7 +1,6 @@
 package com.finki.vladislavangelovski.scan_service.core.impl;
 
-import com.finki.vladislavangelovski.scan_service.api.dto.ScanRequest;
-import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
+import com.finki.vladislavangelovski.scan_service.api.dto.*;
 import com.finki.vladislavangelovski.scan_service.core.*;
 import com.finki.vladislavangelovski.scan_service.core.config.ScanProperties;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -26,7 +26,7 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
     }
 
     @Override
-    public ScanResult scan(ScanRequest request) throws ScannerException {
+    public ScanResult scan(ScanRequest request) throws ScannerException, ParserException, ScanCache.CacheWriteException {
         boolean ignoreUnfixed = request.options() == null || request.options().ignoreUnfixed() == null
                 ? properties.getDefaults().isIgnoreUnfixed()
                 : request.options().ignoreUnfixed();
@@ -46,7 +46,37 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
         UUID scanId = UUID.randomUUID();
         Instant started = Instant.now();
 
-        throw new UnsupportedOperationException("DefaultScanOrchestrator.scan not implemented yet");
+        TrivyOutput output = invoker.run(invocation);
+
+        TrivyParser.ParsedScan parsedScan = parser.parse(output.rawJson());
+
+        List<Finding> findings = parsedScan.findings();
+        Map<Severity, Integer> bySeverity = parsedScan.bySeverity();
+        int total = findings.size();
+        int fixAvailable = parsedScan.fixAvailable();
+
+        Summary summary = new Summary(total, bySeverity, fixAvailable);
+
+        Instant finished = Instant.now();
+
+        String image = parsedScan.image() != null ? parsedScan.image() : request.image();
+        String digest = parsedScan.digest();
+
+        ScanResult normalized = new ScanResult(
+                scanId,
+                image,
+                digest,
+                output.scannerVersion(),
+                started,
+                finished,
+                summary,
+                findings
+        );
+
+        Duration ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
+        cache.put(scanId, normalized, output.rawJson(), ttl);
+
+        return normalized;
     }
 
     @Override
