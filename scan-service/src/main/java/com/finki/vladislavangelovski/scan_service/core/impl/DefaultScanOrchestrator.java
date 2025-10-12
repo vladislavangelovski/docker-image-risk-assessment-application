@@ -57,6 +57,11 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
 
         Summary summary = new Summary(total, bySeverity, fixAvailable);
 
+        var recomputed = com.finki.vladislavangelovski.scan_service.core.util.ScanValidators.computeSummary(findings);
+        if (!com.finki.vladislavangelovski.scan_service.core.util.ScanValidators.matches(summary, recomputed)) {
+            summary = recomputed; // correct it silently; optional: log a warning
+        }
+
         Instant finished = Instant.now();
 
         String image = parsedScan.image() != null ? parsedScan.image() : request.image();

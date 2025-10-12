@@ -71,13 +71,13 @@ public class JacksonTrivyParser implements TrivyParser {
 
                         // references: PrimaryURL + References[]
                         Set<String> refs = new LinkedHashSet<>();
-                        String primary = optText(v, "PrimaryURL", null);
+                        String primary = normalizeRef(optText(v, "PrimaryURL", null));
                         if (!isBlank(primary)) refs.add(primary);
                         JsonNode refsArr = v.get("References");
                         if (refsArr != null && refsArr.isArray()) {
                             for (JsonNode r : refsArr) {
                                 if (r.isTextual()) {
-                                    String url = r.asText();
+                                    String url = normalizeRef(r.asText());
                                     if (!isBlank(url)) refs.add(url);
                                 }
                             }
@@ -268,6 +268,17 @@ public class JacksonTrivyParser implements TrivyParser {
         if (n.isTextual() || n.isNumber() || n.isBoolean()) return n.asText();
         return def;
     }
+
+    private static String normalizeRef(String url) {
+        if (isBlank(url)) return null;
+        String u = url.trim();
+        if (u.startsWith("http://") || u.startsWith("https://")) return u;
+        if (u.startsWith("www.")) return "https://" + u;
+        // e.g., github.com/org/repo or nvd.nist.gov/…
+        if (!u.contains("://")) return "https://" + u;
+        return u;
+    }
+
 
 
     private static boolean isBlank(String s) {
