@@ -2,9 +2,13 @@ package com.finki.vladislavangelovski.scan_service.api;
 
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanRequest;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
+import com.finki.vladislavangelovski.scan_service.api.error.NotFoundException;
+import com.finki.vladislavangelovski.scan_service.core.ParserException;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
+import com.finki.vladislavangelovski.scan_service.core.ScannerException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,8 +19,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/scans")
 @RequiredArgsConstructor
 public class ScanController {
-    //private final ScanOrchestrator orchestrator;
-    //private final ScanCache cache;
+    private final ScanOrchestrator orchestrator;
+    private final ScanCache cache;
 
     /**
      * POST /api/v1/scans  (sync MVP)
@@ -25,11 +29,10 @@ public class ScanController {
      * - Returns normalized ScanResult (no raw here)
      */
     @PostMapping
-    public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request) {
+    public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request) throws ScannerException, ParserException, ScanCache.CacheWriteException {
         validate(request);
-        // TODO: call orchestrator.ok(orchestrator.scan(request));
-        // return ResponseEntity.ok(orchestrator.scan(request));
-        return ResponseEntity.status(501).build();
+        ScanResult result = orchestrator.scan(request);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -42,8 +45,18 @@ public class ScanController {
             @PathVariable UUID scanId,
             @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw
     ) {
-        // TODO: lookup from cache; choose normalized vs raw
-        return ResponseEntity.status(501).build(); // placeholder
+        return cache.get(scanId).
+                map(
+                        cachedScan -> {
+                            if (raw) {
+                                return ResponseEntity.ok()
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .body(cachedScan.rawJson());
+                            } else {
+                                return ResponseEntity.ok(cachedScan.normalized());
+                            }
+                        }
+                ).orElseThrow(() -> new NotFoundException("Scan not found or expired: " + scanId));
     }
 
     /** Minimal, temporary validation (we'll replace with a proper validator/handler) */
