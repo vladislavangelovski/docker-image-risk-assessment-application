@@ -7,6 +7,7 @@ import com.finki.vladislavangelovski.scan_service.core.ParserException;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.ScannerException;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/scans")
-@RequiredArgsConstructor
 public class ScanController {
     private final ScanOrchestrator orchestrator;
     private final ScanCache cache;
+
+    public ScanController(ScanOrchestrator orchestrator, ScanCache cache) {
+        this.orchestrator = orchestrator;
+        this.cache = cache;
+    }
 
     /**
      * POST /api/v1/scans  (sync MVP)
