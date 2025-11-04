@@ -1,0 +1,26 @@
+server:
+  port: 8083
+
+services:
+  scan:
+    base-url: http://localhost:8082
+    assess-path: /api/v1/scans
+
+  cvestore:
+    base-url: http://localhost:8080
+    by-id-path: /api/v1/cves/{cveId}
+    epss-path: /api/v1/cves/{cveId}/epss
+
+ai:
+  evidence:
+    k-default: 6
+  risk:
+    coverage-cap: 10
+    weights:
+      epss: 0.65
+      cvss: 0.35
+      coverage-bonus: 0.15
+
+logging:
+  level:
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: TRACE

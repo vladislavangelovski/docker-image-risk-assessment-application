@@ -20,3 +20,10 @@ spring:
 scan:
   cache:
     ttl-seconds: 86400
+
+debug:
+  http:
+    log-requests: true
+logging:
+  level:
+    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO

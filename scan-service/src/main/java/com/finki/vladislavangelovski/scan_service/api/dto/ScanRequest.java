@@ -1,7 +1,9 @@
 package com.finki.vladislavangelovski.scan_service.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 public record ScanRequest(
-        String image,
+        @JsonAlias({ "image", "imageRef" }) String image,
         RegistryCreds registryCreds,
         ScanOptions options
 ) {

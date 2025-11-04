@@ -10,22 +10,17 @@ import com.finki.vladislavangelovski.scan_service.core.ScannerException;
 import com.finki.vladislavangelovski.scan_service.core.config.ScanProperties;
 import com.finki.vladislavangelovski.scan_service.core.persistence.ScanPersistence;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.time.Duration;
 import java.util.UUID;
@@ -40,7 +35,7 @@ public class ScanController {
     private final ScanProperties properties;
     private static final Logger log = LoggerFactory.getLogger(ScanController.class);
 
-    public ScanController(ScanOrchestrator orchestrator, ScanCache cache, ScanPersistence persistence,  ScanProperties properties) {
+    public ScanController(ScanOrchestrator orchestrator, ScanCache cache, ScanPersistence persistence, ScanProperties properties) {
         this.orchestrator = orchestrator;
         this.cache = cache;
         this.persistence = persistence;
@@ -66,33 +61,33 @@ public class ScanController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = ScanResult.class),
                             examples = @ExampleObject(name = "ok", value = """
-            {
-              "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
-              "image": "nginx:1.25",
-              "digest": "sha256:…",
-              "scannerVersion": "Trivy 0.67.2",
-              "startedAt": "2025-10-12T09:04:35Z",
-              "finishedAt": "2025-10-12T09:04:36Z",
-              "summary": {
-                "total": 12,
-                "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
-                "fixAvailable": 6
-              },
-              "findings": [
-                {
-                  "cveId":"CVE-2024-XXXX",
-                  "package":"openssl",
-                  "installedVersion":"1.1.1u-1",
-                  "fixedVersion":"1.1.1v-1",
-                  "severity":"HIGH",
-                  "severitySource":"nvd",
-                  "cvss":{"source":"nvd","score":7.5,"vector":"CVSS:3.1/..."},
-                  "references":["https://nvd.nist.gov/vuln/detail/CVE-2024-XXXX"],
-                  "sourceTarget":"alpine:3.19 (os)"
-                }
-              ]
-            }
-            """)
+                                    {
+                                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
+                                      "image": "nginx:1.25",
+                                      "digest": "sha256:…",
+                                      "scannerVersion": "Trivy 0.67.2",
+                                      "startedAt": "2025-10-12T09:04:35Z",
+                                      "finishedAt": "2025-10-12T09:04:36Z",
+                                      "summary": {
+                                        "total": 12,
+                                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
+                                        "fixAvailable": 6
+                                      },
+                                      "findings": [
+                                        {
+                                          "cveId":"CVE-2024-XXXX",
+                                          "package":"openssl",
+                                          "installedVersion":"1.1.1u-1",
+                                          "fixedVersion":"1.1.1v-1",
+                                          "severity":"HIGH",
+                                          "severitySource":"nvd",
+                                          "cvss":{"source":"nvd","score":7.5,"vector":"CVSS:3.1/..."},
+                                          "references":["https://nvd.nist.gov/vuln/detail/CVE-2024-XXXX"],
+                                          "sourceTarget":"alpine:3.19 (os)"
+                                        }
+                                      ]
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -101,8 +96,8 @@ public class ScanController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-            {"errorCode":"BAD_REQUEST_IMAGE","message":"image is required","details":{}}
-            """)
+                                    {"errorCode":"BAD_REQUEST_IMAGE","message":"image is required","details":{}}
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -111,24 +106,24 @@ public class ScanController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-            {"errorCode":"INTERNAL","message":"Unexpected server error","details":{}}
-            """)
+                                    {"errorCode":"INTERNAL","message":"Unexpected server error","details":{}}
+                                    """)
                     )
             )
     })
-    @RequestBody(
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             description = "Image to scan and optional registry credentials.",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ScanRequest.class),
                     examples = @ExampleObject(name = "request", value = """
-        {
-          "image": "nginx:1.25",
-          "registryCreds": { "username": "user", "password": "pass" },
-          "options": { "timeoutSec": 120, "ignoreUnfixed": true, "scanners": ["vuln"] }
-        }
-        """)
+                            {
+                              "image": "nginx:1.25",
+                              "registryCreds": { "username": "user", "password": "pass" },
+                              "options": { "timeoutSec": 120, "ignoreUnfixed": true, "scanners": ["vuln"] }
+                            }
+                            """)
             )
     )
     public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request) throws ScannerException, ParserException, ScanCache.CacheWriteException {
@@ -155,18 +150,18 @@ public class ScanController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = ScanResult.class),
                             examples = @ExampleObject(name = "normalized", value = """
-            {
-              "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
-              "image": "nginx:1.25",
-              "scannerVersion": "Trivy 0.67.2",
-              "summary": {
-                "total": 12,
-                "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
-                "fixAvailable": 6
-              },
-              "findings": [ { "cveId":"CVE-2024-XXXX", "package":"openssl", "severity":"HIGH" } ]
-            }
-            """)
+                                    {
+                                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
+                                      "image": "nginx:1.25",
+                                      "scannerVersion": "Trivy 0.67.2",
+                                      "summary": {
+                                        "total": 12,
+                                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
+                                        "fixAvailable": 6
+                                      },
+                                      "findings": [ { "cveId":"CVE-2024-XXXX", "package":"openssl", "severity":"HIGH" } ]
+                                    }
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -176,8 +171,8 @@ public class ScanController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = Object.class),
                             examples = @ExampleObject(name = "raw", value = """
-            {"ArtifactName":"nginx:1.25","Results":[{"Target":"alpine:3.19","Vulnerabilities":[{"VulnerabilityID":"CVE-2024-XXXX","PkgName":"openssl","Severity":"HIGH"}]}]}
-            """)
+                                    {"ArtifactName":"nginx:1.25","Results":[{"Target":"alpine:3.19","Vulnerabilities":[{"VulnerabilityID":"CVE-2024-XXXX","PkgName":"openssl","Severity":"HIGH"}]}]}
+                                    """)
                     )
             ),
             @ApiResponse(
@@ -186,8 +181,8 @@ public class ScanController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-            {"errorCode":"NOT_FOUND","message":"Scan not found or expired: <uuid>","details":{}}
-            """)
+                                    {"errorCode":"NOT_FOUND","message":"Scan not found or expired: <uuid>","details":{}}
+                                    """)
                     )
             )
     })
@@ -232,7 +227,9 @@ public class ScanController {
         throw new NotFoundException("Scan not found or expired: " + scanId);
     }
 
-    /** Minimal, temporary validation (we'll replace with a proper validator/handler) */
+    /**
+     * Minimal, temporary validation (we'll replace with a proper validator/handler)
+     */
     private static void validate(ScanRequest req) {
         if (req == null || req.image() == null || req.image().isBlank()) {
             throw new IllegalArgumentException("image is required");
