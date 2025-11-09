@@ -15,7 +15,7 @@ public class QaServiceImpl implements QaService {
                              "Log4j RCE (Log4Shell)"));
         return new QaQuestionResponse(
                 "Stub answer: This image appears affected by Log4Shell. Upgrade Log4j and rebuild.", citations,
-                List.of("log4j-core:2.14.1"));
+                List.of("log4j-core:2.14.1"), null);
     }
     
     @Override

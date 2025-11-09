@@ -101,8 +101,9 @@ public class AssessmentServiceImpl implements AssessmentService {
             String url = pickBestUrl(d);
             String summary = (d.title() != null && !d.title().isBlank()) ? d.title() : "Vulnerability " + cveId;
             
+            //TODO: fixAvailable correct value
             TopFinding tf = new TopFinding(cveId, epss, percentile, cvss, packagesByCve.getOrDefault(cveId, List.of()),
-                                           summary, url);
+                                           summary, url, null);
             candidates.add(tf);
         }
         
