@@ -16,11 +16,11 @@ public record ScanFinding(
         String fixedVersion,
         String severity,
         String severitySource,
-
+        
         Cvss cvss,
-
+        
         List<String> references,
-
+        
         @JsonProperty("sourceTarget")
         String sourceTarget
 ) {

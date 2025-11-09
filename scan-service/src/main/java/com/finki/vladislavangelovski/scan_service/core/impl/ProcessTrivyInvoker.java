@@ -19,32 +19,36 @@ import java.util.concurrent.*;
 
 public class ProcessTrivyInvoker implements TrivyInvoker {
     // ---- Tunables (safe defaults) ----
-    /** Guard against pathological outputs (JSON is typically a few MB). Set to 32 MiB by default. */
+    /**
+     * Guard against pathological outputs (JSON is typically a few MB). Set to 32 MiB by default.
+     */
     private static final int MAX_STDOUT_BYTES = 32 * 1024 * 1024;
-    /** Bound stderr to keep logs/error messages small. */
+    /**
+     * Bound stderr to keep logs/error messages small.
+     */
     private static final int MAX_STDERR_BYTES = 32 * 1024;
-
+    
     private volatile String cachedVersion;
     private final ScanProperties properties;
-
+    
     public ProcessTrivyInvoker(ScanProperties properties) {
         this.properties = properties;
     }
-
+    
     @Override
     public TrivyOutput run(TrivyInvocationRequest request) throws ScannerException {
         final List<String> cmd = buildCommand(request);
         final ProcessBuilder pb = new ProcessBuilder(cmd);
-
+        
         pb.redirectErrorStream(false);
-
+        
         final Map<String, String> env = pb.environment();
         RegistryCreds registryCreds = request.registryCreds();
         if (registryCreds != null) {
             env.put("TRIVY_USERNAME", registryCreds.username());
             env.put("TRIVY_PASSWORD", registryCreds.password());
         }
-
+        
         try {
             final Process process = pb.start();
             ExecutorService executorService = Executors.newFixedThreadPool(2, r -> {
@@ -52,61 +56,65 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
                 thread.setDaemon(true);
                 return thread;
             });
-
-            Future<byte[]> outF = executorService.submit(() -> readAllBounded(process.getInputStream(), MAX_STDOUT_BYTES));
-            Future<byte[]> errF = executorService.submit(() -> readAllBounded(process.getErrorStream(), MAX_STDERR_BYTES));
-
+            
+            Future<byte[]> outF = executorService.submit(
+                    () -> readAllBounded(process.getInputStream(), MAX_STDOUT_BYTES));
+            Future<byte[]> errF = executorService.submit(
+                    () -> readAllBounded(process.getErrorStream(), MAX_STDERR_BYTES));
+            
             boolean finished = process.waitFor(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
                 process.destroyForcibly();
-
+                
                 try {
                     outF.cancel(true);
                     errF.cancel(true);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     throw new ScannerException("Trivy scan timed out after " + request.timeout().toSeconds() + "s");
                 }
             }
-
+            
             byte[] stdout = getFutureNow(outF, "stdout");
             byte[] stderr = getFutureNow(errF, "stderr");
             int exit = process.exitValue();
-
+            
             String rawJson = new String(stdout, StandardCharsets.UTF_8);
             String errStr = new String(stderr, StandardCharsets.UTF_8);
-
+            
             if (exit != 0) {
                 String msg = sanitizeError(errStr);
-                if (msg.isBlank()) msg = "Trivy returned non-zero exit code: " + exit;
+                if (msg.isBlank()) {
+                    msg = "Trivy returned non-zero exit code: " + exit;
+                }
                 throw new ScannerException(msg);
             }
-
+            
             return new TrivyOutput(rawJson, detectTrivyVersion(), null);
-        }
-        catch (IOException e) {
-            throw new ScannerException("Failed to start Trivy process (is the binary available on PATH or at scan.trivy.path?)", e);
+        } catch (IOException e) {
+            throw new ScannerException(
+                    "Failed to start Trivy process (is the binary available on PATH or at scan.trivy.path?)", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ScannerException("Trivy process interrupted", e);
         }
     }
-
+    
     private List<String> buildCommand(TrivyInvocationRequest request) {
         List<String> cmd = new ArrayList<>();
         String trivyPath = properties.getTrivy().getPath() != null ? properties.getTrivy().getPath() : "trivy";
-
+        
         cmd.add(trivyPath);
         cmd.add("image");
-
+        
         if (properties.getTrivy().isDisableTelemetry()) {
             cmd.add("--disable-telemetry");
         }
         if (properties.getTrivy().isSkipVersionCheck()) {
             cmd.add("--skip-version-check");
         }
-        cmd.add("--format"); cmd.add("json");
-
+        cmd.add("--format");
+        cmd.add("json");
+        
         if (request.scanners() != null && !request.scanners().isEmpty()) {
             cmd.add("--scanners");
             cmd.add(String.join(",", request.scanners()));
@@ -114,19 +122,21 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
         if (request.ignoreUnfixed()) {
             cmd.add("--ignore-unfixed");
         }
-
+        
         Duration t = request.timeout();
         long secs = Math.max(1, t.toSeconds());
         cmd.add("--timeout");
         cmd.add(secs + "s");
-
+        
         cmd.add(request.image());
-
+        
         return cmd;
     }
-
-    private static byte[] readAllBounded(InputStream inputStream, int hardLimitBytes) throws IOException {
-        try (InputStream is = inputStream; ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(Math.min(hardLimitBytes, 64 * 1024))) {
+    
+    private static byte[] readAllBounded(InputStream inputStream,
+                                         int hardLimitBytes) throws IOException {
+        try (InputStream is = inputStream; ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(
+                Math.min(hardLimitBytes, 64 * 1024))) {
             byte[] buffer = new byte[8192];
             int read;
             int total = 0;
@@ -140,8 +150,9 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             return byteArrayOutputStream.toByteArray();
         }
     }
-
-    private static byte[] getFutureNow(Future<byte[]> f, String which) throws ScannerException {
+    
+    private static byte[] getFutureNow(Future<byte[]> f,
+                                       String which) throws ScannerException {
         try {
             return f.get(1, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
@@ -158,12 +169,15 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             throw new ScannerException("Interrupted collecting " + which + " from Trivy", e);
         }
     }
-
+    
     private String detectTrivyVersion() {
         String cached = this.cachedVersion;
-        if (cached != null) return cached;
-
-        List<String> cmd = List.of(properties.getTrivy().getPath() != null ? properties.getTrivy().getPath() : "trivy", "--version");
+        if (cached != null) {
+            return cached;
+        }
+        
+        List<String> cmd = List.of(properties.getTrivy().getPath() != null ? properties.getTrivy().getPath() : "trivy",
+                                   "--version");
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
         try {
             Process p = pb.start();
@@ -181,7 +195,7 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             return this.cachedVersion = "Trivy";
         }
     }
-
+    
     private static String parseVersionLine(String all) {
         // Very tolerant: look for "Version: x.y.z"
         for (String line : all.split("\\R")) {
@@ -195,9 +209,11 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
         }
         return null;
     }
-
+    
     private static String sanitizeError(String err) {
-        if (err == null) return "";
+        if (err == null) {
+            return "";
+        }
         String s = err.strip();
         s = s.replaceAll("(?i)(password|token|secret|authorization)\\s*[:=]\\s*\\S+", "$1=<redacted>");
         s = s.replaceAll("ghp_[A-Za-z0-9]+", "ghp_<redacted>");

@@ -13,18 +13,18 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .exchangeStrategies(ExchangeStrategies.builder()
-                        .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
-                        .build())
+                                            .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                                            .build())
                 .build();
     }
-
+    
     @Bean
     public WebClient cveStoreWebClient(@Value("${services.cvestore.base-url}") String baseUrl) {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .exchangeStrategies(ExchangeStrategies.builder()
-                        .codecs(c -> c.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
-                        .build())
+                                            .codecs(c -> c.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
+                                            .build())
                 .build();
     }
 }

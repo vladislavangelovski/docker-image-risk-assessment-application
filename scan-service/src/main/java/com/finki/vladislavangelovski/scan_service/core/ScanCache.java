@@ -7,13 +7,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ScanCache {
-    void put(UUID scanId, ScanResult normalized, String rawJson, Duration ttl) throws CacheWriteException;
-
+    void put(UUID scanId,
+             ScanResult normalized,
+             String rawJson,
+             Duration ttl) throws CacheWriteException;
+    
     Optional<CachedScan> get(UUID scanId);
-
-    record CachedScan(ScanResult normalized, String rawJson) {}
-
+    
+    record CachedScan(
+            ScanResult normalized,
+            String rawJson
+    ) {
+    }
+    
     class CacheWriteException extends Exception {
-        public CacheWriteException(String message, Throwable cause) { super(message, cause); }
+        public CacheWriteException(String message,
+                                   Throwable cause) {
+            super(message, cause);
+        }
     }
 }

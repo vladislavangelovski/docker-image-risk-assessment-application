@@ -8,12 +8,13 @@ import java.util.Map;
 
 public interface TrivyParser {
     ParsedScan parse(String rawJson) throws ParserException;
-
+    
     record ParsedScan(
             String image,
             String digest,
             List<Finding> findings,
             Map<Severity, Integer> bySeverity,
             int fixAvailable
-    ) {}
+    ) {
+    }
 }

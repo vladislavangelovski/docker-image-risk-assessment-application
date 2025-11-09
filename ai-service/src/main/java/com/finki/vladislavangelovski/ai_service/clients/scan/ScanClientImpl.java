@@ -14,13 +14,13 @@ import java.util.Map;
 public class ScanClientImpl implements ScanClient {
     private final WebClient scanWebClient;
     private final String assessPath;
-
+    
     public ScanClientImpl(@Qualifier("scanWebClient") WebClient scanWebClient,
                           @Value("${services.scan.assess-path}") String assessPath) {
         this.scanWebClient = scanWebClient;
         this.assessPath = assessPath;
     }
-
+    
     @Override
     public ScanResult scanImage(String imageRef) {
         try {

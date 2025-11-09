@@ -14,18 +14,23 @@ public class InMemoryScanCache implements ScanCache {
         final ScanResult normalized;
         final String rawJson;
         final Instant expiresAt;
-
-        Entry(ScanResult normalized, String rawJson, Instant expiresAt) {
+        
+        Entry(ScanResult normalized,
+              String rawJson,
+              Instant expiresAt) {
             this.normalized = normalized;
             this.rawJson = rawJson;
             this.expiresAt = expiresAt;
         }
     }
-
+    
     private final ConcurrentHashMap<UUID, Entry> store = new ConcurrentHashMap<>();
-
+    
     @Override
-    public void put(UUID scanId, ScanResult normalized, String rawJson, Duration ttl) throws CacheWriteException {
+    public void put(UUID scanId,
+                    ScanResult normalized,
+                    String rawJson,
+                    Duration ttl) throws CacheWriteException {
         try {
             Instant expiry = Instant.now().plus(ttl);
             store.put(scanId, new Entry(normalized, rawJson, expiry));
@@ -33,7 +38,7 @@ public class InMemoryScanCache implements ScanCache {
             throw new CacheWriteException("Failed to write to in-memory cache", ex);
         }
     }
-
+    
     @Override
     public Optional<CachedScan> get(UUID scanId) {
         Entry entry = store.get(scanId);
@@ -44,7 +49,7 @@ public class InMemoryScanCache implements ScanCache {
             store.remove(scanId);
             return Optional.empty();
         }
-
+        
         return Optional.of(new CachedScan(entry.normalized, entry.rawJson));
     }
 }

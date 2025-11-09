@@ -15,16 +15,16 @@ import java.util.stream.Collectors;
 
 @Service
 public class AssessmentServiceImpl implements AssessmentService {
-
+    
     private final ScanClient scanClient;
     private final CveStoreClient cveClient;
-
+    
     private final int kDefault;
     private final int coverageCap;
     private final double wEpss;
     private final double wCvss;
     private final double coverageBonus;
-
+    
     public AssessmentServiceImpl(ScanClient scanClient,
                                  CveStoreClient cveClient,
                                  @Value("${ai.evidence.k-default:6}") int kDefault,
@@ -40,133 +40,125 @@ public class AssessmentServiceImpl implements AssessmentService {
         this.wCvss = wCvss;
         this.coverageBonus = coverageBonus;
     }
-
+    
     @Override
     public AssessImageResponse assessImage(AssessImageRequest request) {
         int k = request.k() != null ? request.k() : kDefault;
-
+        
         // 1) Scan
         ScanResult scan = scanClient.scanImage(request.imageRef());
         if (scan == null || scan.findings() == null || scan.findings().isEmpty()) {
-            return new AssessImageResponse(
-                    request.imageRef(),
-                    0,
-                    RiskBand.LOW,
-                    List.of(),
-                    "No CVEs were found in this image by the scanner.",
-                    List.of()
-            );
+            return new AssessImageResponse(request.imageRef(), 0, RiskBand.LOW, List.of(),
+                                           "No CVEs were found in this image by the scanner.", List.of());
         }
-
+        
         // Flatten counts per CVE and collect package lists
         Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
         for (ScanFinding f : scan.findings()) {
-            if (f == null || f.cveId() == null) continue;
-
+            if (f == null || f.cveId() == null) {
+                continue;
+            }
+            
             var list = packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>());
             var pkg = f.packageName();
             if (pkg != null && !pkg.isBlank()) {
                 list.add(pkg);
             }
         }
-
+        
         List<String> cveIds = new ArrayList<>(packagesByCve.keySet());
-
+        
         // 2) Fetch CVE details (batch if possible)
         Map<String, Double> cvssByCve = new HashMap<>();
         for (ScanFinding f : scan.findings()) {
-            if (f == null || f.cveId() == null || f.cvss() == null || f.cvss().score() == null) continue;
+            if (f == null || f.cveId() == null || f.cvss() == null || f.cvss().score() == null) {
+                continue;
+            }
             double score = f.cvss().score();
             cvssByCve.merge(f.cveId(), score, Math::max);
         }
         Map<String, CveForEmbedding> details = cveClient.getByIds(cveIds);
-
+        
         // 3) Build TopFinding list with risk scores
         List<TopFinding> candidates = new ArrayList<>();
         Map<String, Double> sCveById = new HashMap<>();
-
+        
         for (String cveId : cveIds) {
             CveForEmbedding d = details.get(cveId);
-            if (d == null) continue;
-
+            if (d == null) {
+                continue;
+            }
+            
             double epss = d.epss() != null ? d.epss() : 0.0;
             double percentile = d.epssPercentile() != null ? d.epssPercentile() : 0.0;
-            double cvss = (d.cvssBase() != null) ? d.cvssBase()
-                    : cvssByCve.getOrDefault(cveId, 0.0);
+            double cvss = (d.cvssBase() != null) ? d.cvssBase() : cvssByCve.getOrDefault(cveId, 0.0);
             int instances = packagesByCve.getOrDefault(cveId, List.of()).size();
             double coverageNorm = RiskScoring.coverageNormFromInstances(instances, coverageCap);
-
+            
             double sCve = RiskScoring.perCveScore(epss, cvss, coverageNorm, wEpss, wCvss, coverageBonus);
             sCveById.put(cveId, sCve);
-
+            
             String url = pickBestUrl(d);
-            String summary = (d.title() != null && !d.title().isBlank())
-                    ? d.title()
-                    : "Vulnerability " + cveId;
-
-            TopFinding tf = new TopFinding(
-                    cveId,
-                    epss,
-                    percentile,
-                    cvss,
-                    packagesByCve.getOrDefault(cveId, List.of()),
-                    summary,
-                    url
-            );
+            String summary = (d.title() != null && !d.title().isBlank()) ? d.title() : "Vulnerability " + cveId;
+            
+            TopFinding tf = new TopFinding(cveId, epss, percentile, cvss, packagesByCve.getOrDefault(cveId, List.of()),
+                                           summary, url);
             candidates.add(tf);
         }
-
+        
         // sort by sCve desc then epss desc
-        candidates.sort(Comparator
-                .comparing((TopFinding t) -> sCveById.getOrDefault(t.cveId(), 0.0)).reversed()
-                .thenComparing(TopFinding::epss, Comparator.nullsLast(Comparator.reverseOrder()))
-        );
-
+        candidates.sort(Comparator.comparing((TopFinding t) -> sCveById.getOrDefault(t.cveId(), 0.0))
+                                .reversed()
+                                .thenComparing(TopFinding::epss, Comparator.nullsLast(Comparator.reverseOrder())));
+        
         List<TopFinding> topFindings = candidates.stream().limit(k).toList();
-
+        
         // 4) Overall image score (weighted by epss^2) + band
         Map<String, Double> epssMap = topFindings.stream()
                 .collect(Collectors.toMap(TopFinding::cveId, TopFinding::epss, (a, b) -> a));
         int overall = RiskScoring.overallImageScore(topFindings, epssMap);
         RiskBand band = band(overall);
-
+        
         // 5) Citations (NVD links) + concise explanation (placeholder for now)
         List<Citation> citations = topFindings.stream()
                 .map(tf -> new Citation(tf.cveId(), tf.url(), tf.summary()))
                 .toList();
-
+        
         String explanation = switch (band) {
             case CRITICAL ->
-                    "High likelihood of exploitation and severe impact across multiple packages. Prioritize immediate patching and rebuild.";
+                    "High likelihood of exploitation and severe impact across multiple packages. Prioritize immediate" +
+                            " patching and rebuild.";
             case HIGH ->
-                    "Elevated risk: mix of high EPSS and high CVSS findings present. Patch the top issues and redeploy.";
+                    "Elevated risk: mix of high EPSS and high CVSS findings present. Patch the top issues and " +
+                            "redeploy.";
             case MEDIUM -> "Moderate risk: review the listed CVEs and plan updates during the next maintenance window.";
             default -> "Low risk based on current EPSS and CVSS signals.";
         };
-
-        return new AssessImageResponse(
-                request.imageRef(),
-                overall,
-                band,
-                topFindings,
-                explanation,
-                citations
-        );
+        
+        return new AssessImageResponse(request.imageRef(), overall, band, topFindings, explanation, citations);
     }
-
+    
     private static RiskBand band(int score) {
-        if (score >= 75) return RiskBand.CRITICAL;
-        if (score >= 50) return RiskBand.HIGH;
-        if (score >= 25) return RiskBand.MEDIUM;
+        if (score >= 75) {
+            return RiskBand.CRITICAL;
+        }
+        if (score >= 50) {
+            return RiskBand.HIGH;
+        }
+        if (score >= 25) {
+            return RiskBand.MEDIUM;
+        }
         return RiskBand.LOW;
     }
-
+    
     private static String pickBestUrl(CveForEmbedding d) {
         if (d.references() != null && !d.references().isEmpty()) {
             var first = d.references().get(0);
-            if (first != null && first.url() != null && !first.url().isBlank()) return first.url();
+            if (first != null && first.url() != null && !first.url().isBlank()) {
+                return first.url();
+            }
         }
-
+        
         return "https://nvd.nist.gov/vuln/detail/" + d.cveId();
     }
 }

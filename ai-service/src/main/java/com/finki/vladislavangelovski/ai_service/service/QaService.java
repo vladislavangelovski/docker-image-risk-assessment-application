@@ -7,5 +7,6 @@ import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
 
 public interface QaService {
     QaQuestionResponse ask(QaQuestionRequest request);
+    
     QaClaimResponse judge(QaClaimRequest request);
 }

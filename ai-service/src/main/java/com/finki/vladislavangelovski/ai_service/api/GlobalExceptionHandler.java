@@ -14,7 +14,7 @@ public class GlobalExceptionHandler {
         pd.setTitle("Request Error");
         return pd;
     }
-
+    
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIae(IllegalArgumentException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

@@ -7,5 +7,6 @@ import java.util.Map;
 
 public interface CveStoreClient {
     CveForEmbedding getById(String cveId);
+    
     Map<String, CveForEmbedding> getByIds(List<String> cveIds);
 }

@@ -34,14 +34,17 @@ public class ScanController {
     private final ScanPersistence persistence;
     private final ScanProperties properties;
     private static final Logger log = LoggerFactory.getLogger(ScanController.class);
-
-    public ScanController(ScanOrchestrator orchestrator, ScanCache cache, ScanPersistence persistence, ScanProperties properties) {
+    
+    public ScanController(ScanOrchestrator orchestrator,
+                          ScanCache cache,
+                          ScanPersistence persistence,
+                          ScanProperties properties) {
         this.orchestrator = orchestrator;
         this.cache = cache;
         this.persistence = persistence;
         this.properties = properties;
     }
-
+    
     /**
      * POST /api/v1/scans  (sync MVP)
      * - Validates request (image required; options within allowed ranges)
@@ -49,171 +52,115 @@ public class ScanController {
      * - Returns normalized ScanResult (no raw here)
      */
     @PostMapping
-    @Operation(
-            summary = "Scan an image",
-            description = "Invokes Trivy and returns a normalized vulnerability report."
-    )
+    @Operation(summary = "Scan an image", description = "Invokes Trivy and returns a normalized vulnerability report.")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Scan completed",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ScanResult.class),
-                            examples = @ExampleObject(name = "ok", value = """
-                                    {
-                                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
-                                      "image": "nginx:1.25",
-                                      "digest": "sha256:…",
-                                      "scannerVersion": "Trivy 0.67.2",
-                                      "startedAt": "2025-10-12T09:04:35Z",
-                                      "finishedAt": "2025-10-12T09:04:36Z",
-                                      "summary": {
-                                        "total": 12,
-                                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
-                                        "fixAvailable": 6
-                                      },
-                                      "findings": [
-                                        {
-                                          "cveId":"CVE-2024-XXXX",
-                                          "package":"openssl",
-                                          "installedVersion":"1.1.1u-1",
-                                          "fixedVersion":"1.1.1v-1",
-                                          "severity":"HIGH",
-                                          "severitySource":"nvd",
-                                          "cvss":{"source":"nvd","score":7.5,"vector":"CVSS:3.1/..."},
-                                          "references":["https://nvd.nist.gov/vuln/detail/CVE-2024-XXXX"],
-                                          "sourceTarget":"alpine:3.19 (os)"
-                                        }
-                                      ]
-                                    }
-                                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Bad request",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {"errorCode":"BAD_REQUEST_IMAGE","message":"image is required","details":{}}
-                                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Unexpected error",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {"errorCode":"INTERNAL","message":"Unexpected server error","details":{}}
-                                    """)
-                    )
-            )
+            @ApiResponse(responseCode = "200", description = "Scan completed", content = @Content(mediaType =
+                                                                                                          "application/json", schema = @Schema(implementation = ScanResult.class), examples = @ExampleObject(name = "ok", value = """
+                    {
+                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
+                      "image": "nginx:1.25",
+                      "digest": "sha256:…",
+                      "scannerVersion": "Trivy 0.67.2",
+                      "startedAt": "2025-10-12T09:04:35Z",
+                      "finishedAt": "2025-10-12T09:04:36Z",
+                      "summary": {
+                        "total": 12,
+                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
+                        "fixAvailable": 6
+                      },
+                      "findings": [
+                        {
+                          "cveId":"CVE-2024-XXXX",
+                          "package":"openssl",
+                          "installedVersion":"1.1.1u-1",
+                          "fixedVersion":"1.1.1v-1",
+                          "severity":"HIGH",
+                          "severitySource":"nvd",
+                          "cvss":{"source":"nvd","score":7.5,"vector":"CVSS:3.1/..."},
+                          "references":["https://nvd.nist.gov/vuln/detail/CVE-2024-XXXX"],
+                          "sourceTarget":"alpine:3.19 (os)"
+                        }
+                      ]
+                    }
+                    """))),
+            @ApiResponse(responseCode = "400", description = "Bad request", content = @Content(mediaType =
+                                                                                                       "application/json", examples = @ExampleObject(value = """
+                    {"errorCode":"BAD_REQUEST_IMAGE","message":"image is required","details":{}}
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Unexpected error", content = @Content(mediaType =
+                                                                                                            "application/json", examples = @ExampleObject(value = """
+                    {"errorCode":"INTERNAL","message":"Unexpected server error","details":{}}
+                    """)))
     })
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            required = true,
-            description = "Image to scan and optional registry credentials.",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ScanRequest.class),
-                    examples = @ExampleObject(name = "request", value = """
-                            {
-                              "image": "nginx:1.25",
-                              "registryCreds": { "username": "user", "password": "pass" },
-                              "options": { "timeoutSec": 120, "ignoreUnfixed": true, "scanners": ["vuln"] }
-                            }
-                            """)
-            )
-    )
-    public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request) throws ScannerException, ParserException, ScanCache.CacheWriteException {
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, description = "Image to scan and optional " +
+            "registry credentials.", content = @Content(mediaType = "application/json", schema =
+    @Schema(implementation = ScanRequest.class), examples = @ExampleObject(name = "request", value = """
+            {
+              "image": "nginx:1.25",
+              "registryCreds": { "username": "user", "password": "pass" },
+              "options": { "timeoutSec": 120, "ignoreUnfixed": true, "scanners": ["vuln"] }
+            }
+            """)))
+    public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request)
+            throws ScannerException, ParserException, ScanCache.CacheWriteException {
         validate(request);
         ScanResult result = orchestrator.scan(request);
         return ResponseEntity.ok(result);
     }
-
+    
     /**
      * GET /api/v1/scans/{scanId}?raw=true|false
      * - raw=true => return verbatim Trivy JSON
      * - default => return normalized result
      */
     @GetMapping("{scanId}")
-    @Operation(
-            summary = "Get a scan by ID",
-            description = "Returns the normalized scan by default; pass `raw=true` to get the raw Trivy JSON."
-    )
+    @Operation(summary = "Get a scan by ID", description = "Returns the normalized scan by default; pass `raw=true` " +
+            "to get the raw Trivy JSON.")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Normalized result (default)",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ScanResult.class),
-                            examples = @ExampleObject(name = "normalized", value = """
-                                    {
-                                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
-                                      "image": "nginx:1.25",
-                                      "scannerVersion": "Trivy 0.67.2",
-                                      "summary": {
-                                        "total": 12,
-                                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
-                                        "fixAvailable": 6
-                                      },
-                                      "findings": [ { "cveId":"CVE-2024-XXXX", "package":"openssl", "severity":"HIGH" } ]
-                                    }
-                                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Raw Trivy JSON when `raw=true`",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = Object.class),
-                            examples = @ExampleObject(name = "raw", value = """
-                                    {"ArtifactName":"nginx:1.25","Results":[{"Target":"alpine:3.19","Vulnerabilities":[{"VulnerabilityID":"CVE-2024-XXXX","PkgName":"openssl","Severity":"HIGH"}]}]}
-                                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Not found",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {"errorCode":"NOT_FOUND","message":"Scan not found or expired: <uuid>","details":{}}
-                                    """)
-                    )
-            )
+            @ApiResponse(responseCode = "200", description = "Normalized result (default)", content =
+            @Content(mediaType = "application/json", schema = @Schema(implementation = ScanResult.class), examples =
+            @ExampleObject(name = "normalized", value = """
+                    {
+                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
+                      "image": "nginx:1.25",
+                      "scannerVersion": "Trivy 0.67.2",
+                      "summary": {
+                        "total": 12,
+                        "severity": {"CRITICAL":1,"HIGH":3,"MEDIUM":5,"LOW":3,"UNKNOWN":0},
+                        "fixAvailable": 6
+                      },
+                      "findings": [ { "cveId":"CVE-2024-XXXX", "package":"openssl", "severity":"HIGH" } ]
+                    }
+                    """))),
+            @ApiResponse(responseCode = "200", description = "Raw Trivy JSON when `raw=true`", content =
+            @Content(mediaType = "application/json", schema = @Schema(implementation = Object.class), examples =
+            @ExampleObject(name = "raw", value = """
+                    {"ArtifactName":"nginx:1.25","Results":[{"Target":"alpine:3.19","Vulnerabilities":[{"VulnerabilityID":"CVE-2024-XXXX","PkgName":"openssl","Severity":"HIGH"}]}]}
+                    """))),
+            @ApiResponse(responseCode = "404", description = "Not found", content = @Content(mediaType = "application" +
+                    "/json", examples = @ExampleObject(value = """
+                    {"errorCode":"NOT_FOUND","message":"Scan not found or expired: <uuid>","details":{}}
+                    """)))
     })
-    public ResponseEntity<?> get(
-            @PathVariable("scanId") UUID scanId,
-            @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw
-    ) {
+    public ResponseEntity<?> get(@PathVariable("scanId") UUID scanId,
+                                 @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
         // 1) Try Redis
         var cachedOpt = cache.get(scanId);
         if (cachedOpt.isPresent()) {
             var cached = cachedOpt.get();
             if (raw) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(cached.rawJson());
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(cached.rawJson());
             }
             return ResponseEntity.ok(cached.normalized());
         }
-
+        
         // 2) Fallback to DB
         var loadedOpt = persistence.find(scanId, raw);
         if (loadedOpt.isPresent()) {
             var loaded = loadedOpt.get();
             try {
                 var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
-                cache.put(
-                        scanId,
-                        loaded.normalized(),
-                        loaded.rawJsonOptional().orElse(null),
-                        ttl
-                );
+                cache.put(scanId, loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
             } catch (ScanCache.CacheWriteException e) {
                 log.warn("[scan-service] Cache put failed on DB fallback for scanId={}", scanId, e);
             }
@@ -226,7 +173,7 @@ public class ScanController {
         }
         throw new NotFoundException("Scan not found or expired: " + scanId);
     }
-
+    
     /**
      * Minimal, temporary validation (we'll replace with a proper validator/handler)
      */

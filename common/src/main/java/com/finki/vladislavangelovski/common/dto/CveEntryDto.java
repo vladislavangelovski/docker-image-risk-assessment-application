@@ -21,11 +21,11 @@ public class CveEntryDto {
     private Instant lastModified;
     private String vulnStatus;
     private List<String> cveTags;
-
+    
     private String description;
     private List<String> weaknesses;
     private List<Reference> references;
-
+    
     // CVSS v3.1 flattened
     private String cvssVersion;
     private String cvssVector;
@@ -41,12 +41,12 @@ public class CveEntryDto {
     private String cvssAvailabilityImpact;
     private BigDecimal cvssExploitabilityScore;
     private BigDecimal cvssImpactScore;
-
+    
     // EPSS
     private BigDecimal epssScore;
     private BigDecimal epssPercentile;
-
-
+    
+    
     private Instant ingestTime;
     private Instant lastUpsertTime;
 }
