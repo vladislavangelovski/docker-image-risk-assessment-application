@@ -66,6 +66,20 @@ public class AssessmentServiceImpl implements AssessmentService {
             }
         }
         
+        Map<String, Boolean> fixByCve = new LinkedHashMap<>();
+        for (ScanFinding f : scan.findings()) {
+            if (f == null || f.cveId() == null) {
+                continue;
+            }
+            boolean hasFix = f.fixedVersion() != null && !f.fixedVersion().isBlank();
+            if (hasFix) {
+                fixByCve.put(f.cveId(), true);
+            }
+            else {
+                fixByCve.putIfAbsent(f.cveId(), false);
+            }
+        }
+        
         List<String> cveIds = new ArrayList<>(packagesByCve.keySet());
         
         // 2) Fetch CVE details (batch if possible)
@@ -101,9 +115,8 @@ public class AssessmentServiceImpl implements AssessmentService {
             String url = pickBestUrl(d);
             String summary = (d.title() != null && !d.title().isBlank()) ? d.title() : "Vulnerability " + cveId;
             
-            //TODO: fixAvailable correct value
             TopFinding tf = new TopFinding(cveId, epss, percentile, cvss, packagesByCve.getOrDefault(cveId, List.of()),
-                                           summary, url, null);
+                                           summary, url, fixByCve.getOrDefault(cveId, false));
             candidates.add(tf);
         }
         
@@ -127,8 +140,8 @@ public class AssessmentServiceImpl implements AssessmentService {
         
         String explanation = switch (band) {
             case CRITICAL ->
-                    "High likelihood of exploitation and severe impact across multiple packages. Prioritize immediate" +
-                            " patching and rebuild.";
+                    "High likelihood of exploitation and severe impact across multiple packages. Prioritize " +
+                            "immediate" + " patching and rebuild.";
             case HIGH ->
                     "Elevated risk: mix of high EPSS and high CVSS findings present. Patch the top issues and " +
                             "redeploy.";
