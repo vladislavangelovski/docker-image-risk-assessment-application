@@ -28,6 +28,7 @@ jobs:
         service:
           - cve-store-service
           - scan-service
+          - ai-service
     defaults:
       run:
         shell: bash
