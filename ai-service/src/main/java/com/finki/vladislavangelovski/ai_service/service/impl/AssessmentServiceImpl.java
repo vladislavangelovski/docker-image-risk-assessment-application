@@ -126,7 +126,7 @@ public class AssessmentServiceImpl implements AssessmentService {
 
         // 4) Overall image score (weighted by epss^2) + band
         Map<String, Double> epssMap = topFindings.stream()
-                .collect(Collectors.toMap(TopFinding::cveId, TopFinding::epss, (a, b)->a));
+                .collect(Collectors.toMap(TopFinding::cveId, TopFinding::epss, (a, b) -> a));
         int overall = RiskScoring.overallImageScore(topFindings, epssMap);
         RiskBand band = band(overall);
 
@@ -136,8 +136,10 @@ public class AssessmentServiceImpl implements AssessmentService {
                 .toList();
 
         String explanation = switch (band) {
-            case CRITICAL -> "High likelihood of exploitation and severe impact across multiple packages. Prioritize immediate patching and rebuild.";
-            case HIGH -> "Elevated risk: mix of high EPSS and high CVSS findings present. Patch the top issues and redeploy.";
+            case CRITICAL ->
+                    "High likelihood of exploitation and severe impact across multiple packages. Prioritize immediate patching and rebuild.";
+            case HIGH ->
+                    "Elevated risk: mix of high EPSS and high CVSS findings present. Patch the top issues and redeploy.";
             case MEDIUM -> "Moderate risk: review the listed CVEs and plan updates during the next maintenance window.";
             default -> "Low risk based on current EPSS and CVSS signals.";
         };

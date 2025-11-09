@@ -28,6 +28,8 @@ public class AssessmentController {
     }
 
     @GetMapping("/ping")
-    public String ping() { return "ok"; }
+    public String ping() {
+        return "ok";
+    }
 
 }

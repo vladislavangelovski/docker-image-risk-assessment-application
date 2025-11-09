@@ -9,7 +9,7 @@ import java.util.List;
 public record ScanFinding(
         String cveId,
         List<String> packages,
-        @JsonAlias({ "package", "pkg", "pkgName" })
+        @JsonAlias({"package", "pkg", "pkgName"})
         @JsonProperty("package")
         String packageName,
         String installedVersion,
@@ -26,8 +26,9 @@ public record ScanFinding(
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static record Cvss(
-        Double score,
-        String vector,
-        String source
-    ) {}
+            Double score,
+            String vector,
+            String source
+    ) {
+    }
 }

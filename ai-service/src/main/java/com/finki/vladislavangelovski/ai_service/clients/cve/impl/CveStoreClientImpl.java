@@ -26,13 +26,15 @@ public class CveStoreClientImpl implements CveStoreClient {
         this.epssPath = epssPath;
     }
 
-    static record EpssScoreDto(Double score, Double percentile) {}
+    static record EpssScoreDto(Double score, Double percentile) {
+    }
 
     private Optional<EpssScoreDto> fetchLatestEpss(String cveId) {
         var list = cveWebClient.get()
                 .uri(uri -> uri.path(epssPath).queryParam("limit", 1).build(cveId))
                 .retrieve()
-                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.List<EpssScoreDto>>() {})
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.List<EpssScoreDto>>() {
+                })
                 .block();
         return (list != null && !list.isEmpty()) ? Optional.ofNullable(list.get(0)) : Optional.empty();
     }
@@ -73,7 +75,8 @@ public class CveStoreClientImpl implements CveStoreClient {
             try {
                 var cve = getById(id);
                 if (cve != null) map.put(id, cve);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         return map;
     }

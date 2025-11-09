@@ -12,6 +12,7 @@ public record TopFinding(
         Double cvss,
         List<String> packages,
         String summary,
-        String url
+        String url,
+        Boolean fixAvailable
 ) {
 }

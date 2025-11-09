@@ -8,6 +8,7 @@ import java.util.List;
 public record QaQuestionResponse(
         String answer,
         List<Citation> citations,
+        List<String> usedCves,
         List<String> usedPackages
 ) {
 }
