@@ -27,4 +27,9 @@ public class WebClientConfig {
                                             .build())
                 .build();
     }
+    
+    @Bean("embeddingsWebClient")
+    public WebClient embeddingsWebClient(@Value("${embeddings.base-url}") String baseUrl) {
+        return WebClient.builder().baseUrl(baseUrl).build();
+    }
 }

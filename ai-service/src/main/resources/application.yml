@@ -3,11 +3,11 @@ server:
 
 services:
   scan:
-    base-url: http://localhost:8082
+    base-url: http://scan-service:8080
     assess-path: /api/v1/scans
 
   cvestore:
-    base-url: http://localhost:8080
+    base-url: http://cve-store:8080
     by-id-path: /api/v1/cves/{cveId}
     epss-path: /api/v1/cves/{cveId}/epss
 
@@ -24,3 +24,12 @@ ai:
 logging:
   level:
     org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: TRACE
+
+embeddings:
+  base-url: http://host.docker.internal:11434
+  model: nomic-embed-text
+  timeout-ms: 10000
+  expected-dim: 768
+
+vectorstore:
+  table: cve_embeddingsz
