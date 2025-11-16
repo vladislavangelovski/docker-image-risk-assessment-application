@@ -8,7 +8,7 @@ import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -19,59 +19,91 @@ public class SemanticQuestionService {
         this.vectorSearchService = vectorSearchService;
     }
     
-    public QaQuestionResponse answer(QaQuestionRequest request) {
-        String question = request.question();
+    public QaQuestionResponse answerQuestion(QaQuestionRequest request) {
+        return answerQuestionInternal(request, null, null);
+    }
+    
+    public QaQuestionResponse answerQuestionForImage(QaQuestionRequest request,
+                                                     Set<String> allowedCves,
+                                                     Map<String, List<String>> packagesByCve) {
+        return answerQuestionInternal(request, allowedCves, packagesByCve);
+    }
+    
+    private QaQuestionResponse answerQuestionInternal(QaQuestionRequest request,
+                                                      Set<String> allowedCves,
+                                                      // null = no restriction
+                                                      Map<String, List<String>> packagesByCve
+                                                      // null = no packages
+    ) {
         int k = (request.k() != null && request.k() > 0 && request.k() <= 20) ? request.k() : 5;
         
-        long t0 = System.currentTimeMillis();
-        List<SearchHit> hits = vectorSearchService.search(question, k);
-        long took = System.currentTimeMillis() - t0;
+        long start = System.currentTimeMillis();
         
-        if (hits.isEmpty()) {
-            String answer = "I couldn't any relevant CVEs for this question in the indexed data.";
-            return new QaQuestionResponse(answer, List.of(), List.of(), List.of());
+        int rawK = (allowedCves != null && !allowedCves.isEmpty()) ? k * 2 : k;
+        List<SearchHit> hits = vectorSearchService.search(request.question(), rawK);
+        
+        if (allowedCves != null && !allowedCves.isEmpty()) {
+            hits = hits.stream().filter(h -> allowedCves.contains(h.cveId())).limit(k).toList();
+            
+            if (hits.isEmpty()) {
+                hits = vectorSearchService.search(request.question(), k);
+            }
+        }
+        else {
+            if (hits.size() > k) {
+                hits = hits.subList(0, k);
+            }
         }
         
-        StringBuilder sb = new StringBuilder();
-        sb.append("I found ")
+        long took = System.currentTimeMillis() - start;
+        
+        if (hits.isEmpty()) {
+            return new QaQuestionResponse("I couldn't find any CVEs matching that question.", List.of(), List.of(),
+                                          List.of());
+        }
+        
+        StringBuilder answer = new StringBuilder();
+        answer.append("I found ")
                 .append(hits.size())
                 .append(" relevant CVEs for this question (")
-                .append(question)
+                .append(request.question())
                 .append(").\n")
                 .append("Search time: ")
                 .append(took)
                 .append(" ms\n");
         
+        List<Citation> citations = new ArrayList<>();
+        List<String> usedCves = new ArrayList<>();
+        List<String> usedPackages = new ArrayList<>();
+        
         for (int i = 0; i < hits.size(); i++) {
             SearchHit h = hits.get(i);
-            sb.append(i + 1).append(". ").append(h.cveId());
+            usedCves.add(h.cveId());
             
-            if (h.description() != null && !h.description().isBlank()) {
-                sb.append(" - ").append(h.description());
+            String desc = h.description() != null && !h.description()
+                    .isBlank() ? h.description() : "(no description available)";
+            
+            List<String> pkgsForCve = (packagesByCve != null && h.cveId() != null) ? packagesByCve.getOrDefault(
+                    h.cveId(), List.of()) : List.of();
+            
+            answer.append("\n").append(i + 1).append(". ").append(h.cveId()).append(" - ").append(desc);
+            
+            if (!pkgsForCve.isEmpty()) {
+                answer.append(" Impacted packages: ").append(String.join(", ", pkgsForCve)).append(".");
             }
             
             if (h.epss() != null) {
-                sb.append(" (EPSS ").append(String.format("%.3f", h.epss())).append(")");
+                answer.append(" (EPSS ").append(String.format(Locale.ROOT, "%.3f", h.epss())).append(")");
             }
             
-            if (h.cvssBase() != null) {
-                sb.append(" [CVSS ").append(String.format("%.1f", h.cvssBase())).append("]");
-            }
-            sb.append("\n\n");
+            String url = "https://nvd.nist.gov/vuln/detail/" + h.cveId();
+            citations.add(new Citation(h.cveId(), url, desc));
+            usedPackages.addAll(pkgsForCve);
         }
         
-        String answer = sb.toString();
+        // Deduplicate packages
+        List<String> uniquePackages = usedPackages.stream().distinct().toList();
         
-        List<Citation> citations = hits.stream()
-                .map(h -> new Citation(h.cveId(), "https://nvd.nist.gov/vuln/detail/" + h.cveId(),
-                                       h.description() != null && !h.description()
-                                               .isBlank() ? h.description() : ("Vulnerability " + h.cveId())))
-                .toList();
-        
-        List<String> usedCves = hits.stream().map(SearchHit::cveId).toList();
-        
-        List<String> usedPackages = List.of();
-        
-        return new QaQuestionResponse(answer, citations, usedCves, usedPackages);
+        return new QaQuestionResponse(answer.toString(), citations, usedCves, uniquePackages);
     }
 }

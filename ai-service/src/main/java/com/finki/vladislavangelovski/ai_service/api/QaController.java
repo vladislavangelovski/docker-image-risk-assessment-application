@@ -23,13 +23,13 @@ public class QaController {
     }
     
     @PostMapping("/question")
-    public QaQuestionResponse ask(@RequestBody QaQuestionRequest request) {
+    public QaQuestionResponse answerQuestion(@RequestBody QaQuestionRequest request) {
         if (request == null || !StringUtils.hasText(request.question())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question is required");
         }
         
         Integer k = request.k() != null ? request.k() : 4;
-        return qaService.ask(new QaQuestionRequest(request.question(), request.imageRef(), k));
+        return qaService.answerQuestion(new QaQuestionRequest(request.question(), request.imageRef(), k));
     }
     
     @PostMapping("/claim")

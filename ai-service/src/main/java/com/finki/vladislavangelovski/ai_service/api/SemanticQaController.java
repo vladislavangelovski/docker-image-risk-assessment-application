@@ -21,6 +21,6 @@ public class SemanticQaController {
     
     @PostMapping(path = "/qa", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     public QaQuestionResponse ask(@RequestBody QaQuestionRequest request) {
-        return semanticQuestionService.answer(request);
+        return semanticQuestionService.answerQuestion(request);
     }
 }
