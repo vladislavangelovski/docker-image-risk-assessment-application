@@ -5,6 +5,8 @@ import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanFinding;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanResult;
 import com.finki.vladislavangelovski.ai_service.scoring.RiskScoring;
+import com.finki.vladislavangelovski.ai_service.search.VectorSearchService;
+import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
 import com.finki.vladislavangelovski.ai_service.service.AssessmentService;
 import com.finki.vladislavangelovski.common.dto.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,7 @@ public class AssessmentServiceImpl implements AssessmentService {
     private final double wEpss;
     private final double wCvss;
     private final double coverageBonus;
+    private final VectorSearchService vectorSearchService;
     
     public AssessmentServiceImpl(ScanClient scanClient,
                                  CveStoreClient cveClient,
@@ -31,7 +34,8 @@ public class AssessmentServiceImpl implements AssessmentService {
                                  @Value("${ai.risk.coverage-cap:10}") int coverageCap,
                                  @Value("${ai.risk.weights.epss:0.65}") double wEpss,
                                  @Value("${ai.risk.weights.cvss:0.35}") double wCvss,
-                                 @Value("${ai.risk.weights.coverage-bonus:0.15}") double coverageBonus) {
+                                 @Value("${ai.risk.weights.coverage-bonus:0.15}") double coverageBonus,
+                                 VectorSearchService vectorSearchService) {
         this.scanClient = scanClient;
         this.cveClient = cveClient;
         this.kDefault = kDefault;
@@ -39,6 +43,7 @@ public class AssessmentServiceImpl implements AssessmentService {
         this.wEpss = wEpss;
         this.wCvss = wCvss;
         this.coverageBonus = coverageBonus;
+        this.vectorSearchService = vectorSearchService;
     }
     
     @Override
@@ -120,7 +125,6 @@ public class AssessmentServiceImpl implements AssessmentService {
             candidates.add(tf);
         }
         
-        // sort by sCve desc then epss desc
         candidates.sort(Comparator.comparing((TopFinding t) -> sCveById.getOrDefault(t.cveId(), 0.0))
                                 .reversed()
                                 .thenComparing(TopFinding::epss, Comparator.nullsLast(Comparator.reverseOrder())));
@@ -133,12 +137,29 @@ public class AssessmentServiceImpl implements AssessmentService {
         int overall = RiskScoring.overallImageScore(topFindings, epssMap);
         RiskBand band = band(overall);
         
-        // 5) Citations (NVD links) + concise explanation (placeholder for now)
-        List<Citation> citations = topFindings.stream()
-                .map(tf -> new Citation(tf.cveId(), tf.url(), tf.summary()))
-                .toList();
+        final int perFinding = 2;
+        final int maxTotal = 6;
+        final double minSim = 0.62;
         
-        String explanation = switch (band) {
+        List<Citation> citations = new ArrayList<>();
+        for (TopFinding tf : topFindings) {
+            List<Citation> sem = semanticCitationsFor(tf.cveId(), tf.packages(), tf.summary(), perFinding, minSim);
+            if (sem.isEmpty()) {
+                sem = List.of(new Citation(tf.cveId(), tf.url(), tf.summary()));
+            }
+            
+            for (Citation c : sem) {
+                if (citations.size() >= maxTotal) {
+                    break;
+                }
+                citations.add(c);
+            }
+            if (citations.size() >= maxTotal) {
+                break;
+            }
+        }
+        
+        String baseExplanation = switch (band) {
             case CRITICAL ->
                     "High likelihood of exploitation and severe impact across multiple packages. Prioritize " +
                             "immediate" + " patching and rebuild.";
@@ -148,7 +169,9 @@ public class AssessmentServiceImpl implements AssessmentService {
             case MEDIUM -> "Moderate risk: review the listed CVEs and plan updates during the next maintenance window.";
             default -> "Low risk based on current EPSS and CVSS signals.";
         };
-        
+        String pkgHint = mostCommonPackagesSummary(topFindings, 3);
+        String explanation = pkgHint.isBlank() ? baseExplanation :
+                baseExplanation + " Most affected packages: " + pkgHint + ".";
         return new AssessImageResponse(request.imageRef(), overall, band, topFindings, explanation, citations);
     }
     
@@ -174,5 +197,59 @@ public class AssessmentServiceImpl implements AssessmentService {
         }
         
         return "https://nvd.nist.gov/vuln/detail/" + d.cveId();
+    }
+    
+    private static String buildQuery(String cveId,
+                                     List<String> pkgs,
+                                     String fallbackTitle) {
+        String pkgPart = (pkgs == null || pkgs.isEmpty()) ? "" : " " + String.join(", ", pkgs);
+        String titlePart = (fallbackTitle != null && !fallbackTitle.isBlank()) ? (" " + fallbackTitle) : "";
+        return cveId + pkgPart + titlePart;
+    }
+    
+    private static String truncate(String s,
+                                   int max) {
+        if (s == null) {
+            return null;
+        }
+        
+        return s.length() <= max ? s : s.substring(0, Math.max(0, max - 1)) + "...";
+    }
+    
+    private List<Citation> semanticCitationsFor(String cveId,
+                                                List<String> pkgs,
+                                                String titleOrDesc,
+                                                int k,
+                                                double minSim) {
+        String q = buildQuery(cveId, pkgs, titleOrDesc);
+        List<SearchHit> hits = vectorSearchService.search(q, Math.max(k, 1));
+        return hits.stream()
+                .filter(h -> h.similarity() == null || h.similarity() >= minSim)
+                .limit(k)
+                .map(h -> new Citation(h.cveId(), "https://nvd.nist.gov/vuln/detail/" + h.cveId(),
+                                       h.title() != null && !h.title().isBlank() ? h.title() : truncate(h.description(),
+                                                                                                        180) != null
+                                               ? truncate(
+                                               h.description(), 180) : ("Relevant evidence for " + h.cveId())))
+                .toList();
+    }
+    
+    private static String mostCommonPackagesSummary(List<TopFinding> tfs,
+                                                    int maxPkgs) {
+        Map<String, Integer> freq = new LinkedHashMap<>();
+        for (TopFinding tf : tfs) {
+            if (tf.packages() == null) {
+                continue;
+            }
+            for (String p : tf.packages()) {
+                freq.merge(p, 1, Integer::sum);
+            }
+        }
+        return freq.entrySet()
+                .stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(maxPkgs)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.joining(", "));
     }
 }

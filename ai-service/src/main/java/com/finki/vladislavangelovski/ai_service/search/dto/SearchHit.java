@@ -6,8 +6,7 @@ public record SearchHit(
         String description,
         Double epss,
         Double cvssBase,
-        double similarity
-        // 0..1 (cosine sim if your index is vector_cosine_ops)
+        Double similarity
 ) {
 }
 
