@@ -74,4 +74,33 @@ public class EmbeddingIndexService {
         vectorRepo.upsertAll(docs, vectors);
         return docs.size();
     }
+    
+    public int indexNextBatch(int batchSize) {
+        int size = (batchSize <= 0) ? 1000 : batchSize;
+        
+        // Ask CVE store for candidates
+        var docs = cveClient.findCandidatesForEmbedding(size);
+        if (docs == null || docs.isEmpty()) {
+            return 0;
+        }
+        
+        // Build texts to embed (same as indexByIds)
+        List<String> texts = new ArrayList<>(docs.size());
+        for (CveForEmbedding d : docs) {
+            String title = d.title() != null ? d.title() : d.cveId();
+            String desc = d.description() != null ? d.description() : "";
+            texts.add(title + "\n\n" + desc);
+        }
+        
+        var vectors = embeddings.embedAll(texts);
+        if (vectors == null || vectors.size() != docs.size()) {
+            throw new IllegalStateException(
+                    "Embedding count mismatch: " +
+                            (vectors == null ? 0 : vectors.size()) +
+                            " vs " + docs.size());
+        }
+        
+        vectorRepo.upsertAll(docs, vectors);
+        return docs.size();
+    }
 }

@@ -191,8 +191,8 @@ public class AssessmentServiceImpl implements AssessmentService {
     private static String pickBestUrl(CveForEmbedding d) {
         if (d.references() != null && !d.references().isEmpty()) {
             var first = d.references().get(0);
-            if (first != null && first.url() != null && !first.url().isBlank()) {
-                return first.url();
+            if (first != null && first.getUrl() != null && !first.getUrl().isBlank()) {
+                return first.getUrl();
             }
         }
         

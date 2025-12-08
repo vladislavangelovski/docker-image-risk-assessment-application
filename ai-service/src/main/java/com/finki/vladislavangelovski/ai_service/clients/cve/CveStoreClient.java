@@ -9,4 +9,7 @@ public interface CveStoreClient {
     CveForEmbedding getById(String cveId);
     
     Map<String, CveForEmbedding> getByIds(List<String> cveIds);
+    
+    List<CveForEmbedding> findCandidatesForEmbedding(int limit);
+    
 }

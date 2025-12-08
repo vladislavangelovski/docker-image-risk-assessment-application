@@ -25,7 +25,16 @@ public class EmbeddingsAdminController {
     }
     
     // --- DTOs ---
-    public record IndexRequest(List<String> cveIds) {
+    public static class IndexRequest {
+        private List<String> cveIds;
+        
+        public List<String> getCveIds() {
+            return cveIds;
+        }
+        
+        public void setCveIds(List<String> cveIds) {
+            this.cveIds = cveIds;
+        }
     }
     
     public record IndexResponse(
@@ -42,10 +51,20 @@ public class EmbeddingsAdminController {
      */
     @PostMapping(value = "/index", consumes = MediaType.APPLICATION_JSON_VALUE, produces =
             MediaType.APPLICATION_JSON_VALUE)
-    public IndexResponse index(@RequestBody IndexRequest req) {
-        List<String> ids = (req == null || req.cveIds() == null) ? List.of() : req.cveIds();
-        int upserted = indexService.indexByIds(ids);
-        return new IndexResponse(ids.size(), upserted);
+    public IndexResponse index(@RequestBody(required = false) IndexRequest req) {
+        List<String> ids = (req == null || req.getCveIds() == null)
+                ? List.of()
+                : req.getCveIds();
+        
+        int upserted;
+        if (ids.isEmpty()) {
+            // auto-batch mode
+            upserted = indexService.indexNextBatch(1000);
+            return new IndexResponse(0, upserted);
+        } else {
+            upserted = indexService.indexByIds(ids);
+            return new IndexResponse(ids.size(), upserted);
+        }
     }
     
     /**
@@ -54,7 +73,6 @@ public class EmbeddingsAdminController {
     @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public SearchResponse search(@RequestParam("q") String q,
                                  @RequestParam(value = "k", defaultValue = "5") int k) {
-        // embed the query text as a single-item batch
         var vecs = embeddings.embedAll(List.of(q));
         if (vecs == null || vecs.isEmpty()) {
             return new SearchResponse(List.of());

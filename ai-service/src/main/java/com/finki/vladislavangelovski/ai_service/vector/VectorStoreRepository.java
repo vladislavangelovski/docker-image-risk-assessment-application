@@ -7,4 +7,5 @@ import java.util.List;
 public interface VectorStoreRepository {
     void upsertAll(List<CveForEmbedding> docs, List<float[]> vectors);
     List<SearchHit> search(float[] queryVector, int k);
+    boolean existsByCveId(String cveId);
 }

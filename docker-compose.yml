@@ -76,6 +76,8 @@ services:
       interval: 10s
       retries: 5
     restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
 
 
   ai-service:
@@ -129,3 +131,4 @@ services:
 volumes:
   dbdata:
   redis-data:
+  ollama-models:

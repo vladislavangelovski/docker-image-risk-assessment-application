@@ -32,4 +32,15 @@ embeddings:
   expected-dim: 768
 
 vectorstore:
-  table: cve_embeddingsz
+  table: cve_embeddings
+
+spring:
+  ai:
+    model:
+      chat: ollama
+    ollama:
+      base-url: http://host.docker.internal:11434
+      chat:
+        options:
+          model: llama3.2:3b-instruct-fp16
+          temperature: 0.0

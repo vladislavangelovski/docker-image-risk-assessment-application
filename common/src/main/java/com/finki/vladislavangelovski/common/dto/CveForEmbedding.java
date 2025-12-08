@@ -1,6 +1,7 @@
 package com.finki.vladislavangelovski.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.finki.vladislavangelovski.common.model.Reference;
 
 import java.time.Instant;
 import java.util.List;
