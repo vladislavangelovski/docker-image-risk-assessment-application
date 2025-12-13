@@ -26,7 +26,7 @@ logging:
     org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: TRACE
 
 embeddings:
-  base-url: http://host.docker.internal:11434
+  base-url: http://ollama:11434
   model: nomic-embed-text
   timeout-ms: 10000
   expected-dim: 768
@@ -39,7 +39,7 @@ spring:
     model:
       chat: ollama
     ollama:
-      base-url: http://host.docker.internal:11434
+      base-url: http://ollama:11434
       chat:
         options:
           model: llama3.2:3b-instruct-fp16
