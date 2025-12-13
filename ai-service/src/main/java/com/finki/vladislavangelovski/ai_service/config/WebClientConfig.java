@@ -83,8 +83,12 @@ public class WebClientConfig {
         Retry retrySpec = Retry.backoff(retryMaxAttempts, Duration.ofMillis(retryInitialBackoffMs))
                 .maxBackoff(Duration.ofMillis(retryMaxBackoffMs))
                 .filter(this::isRetryable)
-                .doBeforeRetry(rs -> log.warn("Retrying {} after {} ms (attempt {}/{})", rs.failure().getClass().getSimpleName(),
-                        rs.backoff().toMillis(), rs.totalRetries() + 1, retryMaxAttempts));
+                .doBeforeRetry(rs -> {
+                    long exponentialDelay = (long) (retryInitialBackoffMs * Math.pow(2, rs.totalRetries()));
+                    long cappedDelay = Math.min(exponentialDelay, retryMaxBackoffMs);
+                    log.warn("Retrying {} after {} ms (attempt {}/{})", rs.failure().getClass().getSimpleName(), cappedDelay,
+                            rs.totalRetries() + 1, retryMaxAttempts);
+                });
 
         return (request, next) -> next.exchange(request)
                 .flatMap(this::propagate5xxToError)
