@@ -24,8 +24,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "8080:8080"
 
   redis:
     image: redis:7
@@ -47,8 +45,6 @@ services:
       context: .
       dockerfile: scan-service/Dockerfile
     image: docker-image-risk-assessment-application-scan-service
-    ports:
-      - "8082:8080"
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
@@ -124,8 +120,24 @@ services:
       VECTORSTORE_DATASOURCE_USERNAME: risk
       VECTORSTORE_DATASOURCE_PASSWORD: dev
 
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    depends_on:
+      cve-store:
+        condition: service_started
+      scan-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVICES_SCAN_BASE_URL: http://scan-service:8080
+      SERVICES_CVE_STORE_BASE_URL: http://cve-store:8080
+      SERVICES_AI_BASE_URL: http://ai-service:8083
     ports:
-      - "8083:8083"
+      - "8080:8080"
 
 
 volumes:
