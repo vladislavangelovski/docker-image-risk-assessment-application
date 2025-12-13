@@ -18,13 +18,16 @@ public class CveStoreClientImpl implements CveStoreClient {
     private final WebClient cveWebClient;
     private final String byIdPath;
     private final String epssPath;
-    
+    private final String configuredListPath;
+
     public CveStoreClientImpl(@Qualifier("cveStoreWebClient") WebClient cveStoreWebClient,
                               @Value("${services.cvestore.by-id-path}") String byIdPath,
-                              @Value("${services.cvestore.epss-path}") String epssPath) {
+                              @Value("${services.cvestore.epss-path}") String epssPath,
+                              @Value("${services.cvestore.list-path:}") String configuredListPath) {
         this.cveWebClient = cveStoreWebClient;
         this.byIdPath = byIdPath;
         this.epssPath = epssPath;
+        this.configuredListPath = configuredListPath;
     }
     
     // --------------------- helpers ---------------------
@@ -132,10 +135,9 @@ public class CveStoreClientImpl implements CveStoreClient {
     @Override
     public List<CveForEmbedding> findCandidatesForEmbedding(int limit) {
         int size = (limit <= 0) ? 100 : Math.min(limit, 100); // CveEntryController caps size at 100
-        
-        // byIdPath is e.g. "/api/v1/cves/{id}" -> derive list path "/api/v1/cves"
-        String listPath = byIdPath.replace("/{id}", "");
-        
+
+        String listPath = resolveListPath();
+
         CvePageResponse page = cveWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(listPath)
@@ -162,6 +164,15 @@ public class CveStoreClientImpl implements CveStoreClient {
         }
         
         return result;
+    }
+
+    private String resolveListPath() {
+        if (configuredListPath != null && !configuredListPath.isBlank()) {
+            return configuredListPath;
+        }
+
+        int placeholder = byIdPath.indexOf("/{");
+        return (placeholder > 0) ? byIdPath.substring(0, placeholder) : byIdPath;
     }
     
     private static final class CvePageResponse {

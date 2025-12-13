@@ -119,6 +119,7 @@ services:
       # === services.cvestore ===
       SERVICES_CVESTORE_BASE_URL: http://cve-store:8080
       SERVICES_CVESTORE_BY_ID_PATH: /api/v1/cves/{cveId}
+      SERVICES_CVESTORE_LIST_PATH: /api/v1/cves
       SERVICES_CVESTORE_EPSS_PATH: /api/v1/cves/{cveId}/epss
       # === embeddings (Ollama) ===
       AI_EMBEDDINGS_BASE_URL: "http://ollama:11434"

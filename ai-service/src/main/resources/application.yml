@@ -9,6 +9,7 @@ services:
   cvestore:
     base-url: http://cve-store:8080
     by-id-path: /api/v1/cves/{cveId}
+    list-path: /api/v1/cves
     epss-path: /api/v1/cves/{cveId}/epss
 
   http:
