@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 10s
+      default-filters:
+        - name: AuthenticationPlaceholderFilter
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: scan-service
+          uri: ${services.scan-base-url}
+          predicates:
+            - Path=/api/v1/scans/**
+        - id: cve-store-service
+          uri: ${services.cve-store-base-url}
+          predicates:
+            - Path=/api/v1/cves/**
+        - id: ai-service
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/v1/ai/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+services:
+  scan-base-url: http://scan-service:8080
+  cve-store-base-url: http://cve-store:8080
+  ai-base-url: http://ai-service:8083
