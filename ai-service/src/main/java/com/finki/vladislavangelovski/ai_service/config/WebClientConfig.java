@@ -5,7 +5,6 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,10 +18,13 @@ import reactor.core.publisher.Mono;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
-@Slf4j
 public class WebClientConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(WebClientConfig.class);
 
     private final int connectTimeoutMs;
     private final int responseTimeoutMs;
