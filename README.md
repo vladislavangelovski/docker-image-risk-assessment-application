@@ -51,6 +51,12 @@ SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
     - CVE Store API: `http://localhost:8080/api/v1/cves`
     - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
+### Startup order & health
+- Postgres and Redis must be healthy before the app services start consuming them.
+- `cve-store` and `scan-service` expose `/actuator/health` (with DB/Redis checks) and Docker healthchecks keep them from becoming "ready" until their backing stores respond.
+- `ai-service` waits for both `cve-store` and `scan-service` to report healthy before starting, reducing startup-race failures.
+- The CVE bootstrap runner in `cve-store` waits for the database to answer before running the initial ingest so first-time startup is reliable.
+
 ## Running Tests
 ```
 # Run all unit + integration tests
