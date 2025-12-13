@@ -14,19 +14,14 @@ COPY common/pom.xml common/pom.xml
 COPY . .
 # build just ai-service (and what it needs)
 
-RUN chmod +x ./mvnw && \
-    ./mvnw -q -pl ai-service -am clean package -DskipTests && \
-    mkdir -p /out && \
-    BOOT_JAR="$(ls ai-service/target/*.jar | grep -v -- '-plain\.jar' | head -n1)" && \
-    cp "$BOOT_JAR" /out/app.jar
-
-
+RUN mvn -q -pl ai-service -am clean package -DskipTests && \
+    cp "$(ls ai-service/target/*.jar | grep -v -- '-plain\\.jar' | head -n1)" /workspace/app.jar
 
 # ---- Runtime stage
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 # pick the bootable fat jar:
-COPY --from=build /out/app.jar /app/app.jar
+COPY --from=build /workspace/app.jar /app/app.jar
 # If your ai-service uses server.port: 8083 in application.yml,
 # we expose 8083 here; otherwise change both lines to 8080.
 EXPOSE 8083
