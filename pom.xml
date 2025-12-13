@@ -74,6 +74,7 @@
         <module>scan-service</module>
         <module>ai-service</module>
         <module>gateway-service</module>
+        <module>smoke-tests</module>
     </modules>
 
 </project>

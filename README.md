@@ -51,14 +51,17 @@ SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
     - CVE Store API: `http://localhost:8080/api/v1/cves`
     - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
+## Integration smoke test (JUnit + Testcontainers)
+- **Prerequisites**: Docker/Buildx (for building service images) and Java 21/Maven for running the tests.
+- **Run locally**: `mvn -pl smoke-tests -am test`
+- **What it does**:
+  1. Uses Testcontainers `DockerComposeContainer` to bring up the full compose stack with ephemeral Postgres credentials.
+  2. Waits for the gateway `/health` endpoint to report `UP`.
+  3. Submits a scan for `alpine:3.18`, seeds CVE/EPSS metadata for the first finding, and calls the AI assessment endpoint.
+  4. Asserts that top findings and citations are present in the assessment response.
+
 ### Startup order & health
 - Postgres and Redis must be healthy before the app services start consuming them.
 - `cve-store` and `scan-service` expose `/actuator/health` (with DB/Redis checks) and Docker healthchecks keep them from becoming "ready" until their backing stores respond.
 - `ai-service` waits for both `cve-store` and `scan-service` to report healthy before starting, reducing startup-race failures.
 - The CVE bootstrap runner in `cve-store` waits for the database to answer before running the initial ingest so first-time startup is reliable.
-
-## Running Tests
-```
-# Run all unit + integration tests
-docker compose run --rm cve-store-service mvn test
-```
