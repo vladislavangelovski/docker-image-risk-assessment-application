@@ -11,6 +11,16 @@ services:
     by-id-path: /api/v1/cves/{cveId}
     epss-path: /api/v1/cves/{cveId}/epss
 
+  http:
+    connect-timeout-ms: 2000
+    response-timeout-ms: 5000
+    read-timeout-ms: 5000
+    write-timeout-ms: 5000
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 2000
+      max-backoff-ms: 10000
+
 ai:
   evidence:
     k-default: 6

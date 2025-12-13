@@ -1,5 +1,5 @@
 # ---------- Build stage ----------
-FROM eclipse-temurin:23-jdk AS build
+FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 # Copy the whole repo so Maven can build module dependencies (e.g., "common")
@@ -13,7 +13,7 @@ RUN chmod +x ./mvnw && \
     cp "$BOOT_JAR" /out/app.jar
 
 # ---------- Runtime stage ----------
-FROM eclipse-temurin:23-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /
 
 # (a) Install Trivy

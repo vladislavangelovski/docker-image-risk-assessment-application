@@ -1,5 +1,5 @@
 # ---- Build stage
-FROM maven:3.9-eclipse-temurin-23 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
 # copy root pom + module poms first for better caching
@@ -23,7 +23,7 @@ RUN chmod +x ./mvnw && \
 
 
 # ---- Runtime stage
-FROM eclipse-temurin:23-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 # pick the bootable fat jar:
 COPY --from=build /out/app.jar /app/app.jar

@@ -29,7 +29,7 @@ This project contains multiple microservices that together provide vulnerability
 
 ## Prerequsites
 - Docker & Docker Compose (v1.29+)
-- Java 23 (for local build/tests)
+- Java 21 (for local build/tests)
 - Maven 3.9+
 
 ## Environment Variables
@@ -50,6 +50,12 @@ SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
 2. **Access Services**
     - CVE Store API: `http://localhost:8080/api/v1/cves`
     - Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+### Startup order & health
+- Postgres and Redis must be healthy before the app services start consuming them.
+- `cve-store` and `scan-service` expose `/actuator/health` (with DB/Redis checks) and Docker healthchecks keep them from becoming "ready" until their backing stores respond.
+- `ai-service` waits for both `cve-store` and `scan-service` to report healthy before starting, reducing startup-race failures.
+- The CVE bootstrap runner in `cve-store` waits for the database to answer before running the initial ingest so first-time startup is reliable.
 
 ## Running Tests
 ```

@@ -27,3 +27,14 @@ debug:
 logging:
   level:
     org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
