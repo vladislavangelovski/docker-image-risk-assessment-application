@@ -14,8 +14,7 @@ COPY common/pom.xml common/pom.xml
 COPY . .
 # build just ai-service (and what it needs)
 
-RUN chmod +x ./mvnw && \
-    ./mvnw -q -pl ai-service -am clean package -DskipTests && \
+RUN mvn -q -pl ai-service -am clean package -DskipTests && \
     mkdir -p /out && \
     BOOT_JAR="$(ls ai-service/target/*.jar | grep -v -- '-plain\.jar' | head -n1)" && \
     cp "$BOOT_JAR" /out/app.jar
