@@ -64,7 +64,7 @@ public class SmokeIT {
     }
 
     @BeforeAll
-    void setUp() throws IOException {
+    void setUp() throws IOException, InterruptedException {
         backupAndWriteEnvFile();
         COMPOSE.start();
         baseUrl = String.format(
