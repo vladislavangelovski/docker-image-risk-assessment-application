@@ -113,9 +113,9 @@ services:
       # === services.cvestore ===
       SERVICES_CVESTORE_BASE_URL: http://cve-store:8080
       SERVICES_CVESTORE_BY_ID_PATH: /api/v1/cves/{cveId}
-      SERVICES_CVESTORE_EPSS_PATH: /api/v1/cves/{id}/epss
+      SERVICES_CVESTORE_EPSS_PATH: /api/v1/cves/{cveId}/epss
       # === embeddings (Ollama) ===
-      AI_EMBEDDINGS_BASE_URL: "http://host.docker.internal:11434"
+      AI_EMBEDDINGS_BASE_URL: "http://ollama:11434"
       EMBEDDINGS_MODEL: nomic-embed-text
       EMBEDDINGS_TIMEOUT_MS: "5000"
       AI_EMBEDDINGS_DIM: "768"
