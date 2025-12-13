@@ -29,7 +29,7 @@ This project contains multiple microservices that together provide vulnerability
 
 ## Prerequsites
 - Docker & Docker Compose (v1.29+)
-- Java 23 (for local build/tests)
+- Java 21 (for local build/tests)
 - Maven 3.9+
 
 ## Environment Variables
