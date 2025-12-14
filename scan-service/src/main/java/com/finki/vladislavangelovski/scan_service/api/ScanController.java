@@ -173,6 +173,36 @@ public class ScanController {
         }
         throw new NotFoundException("Scan not found or expired: " + scanId);
     }
+
+    @GetMapping(params = "imageRef")
+    @Operation(summary = "Get the latest scan by imageRef", description = "Returns the cached or most recent scan for the " +
+            "provided image reference.")
+    public ResponseEntity<?> getLatestByImage(@RequestParam("imageRef") String imageRef,
+                                              @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
+        if (imageRef == null || imageRef.isBlank()) {
+            throw new IllegalArgumentException("imageRef is required");
+        }
+
+        var loadedOpt = persistence.findLatestByImage(imageRef, raw);
+        if (loadedOpt.isEmpty()) {
+            throw new NotFoundException("Scan not found or expired for image: " + imageRef);
+        }
+
+        var loaded = loadedOpt.get();
+        try {
+            var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
+            cache.put(loaded.scanId(), loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
+        } catch (ScanCache.CacheWriteException e) {
+            log.warn("[scan-service] Cache put failed on imageRef lookup for {}", imageRef, e);
+        }
+
+        if (raw) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(loaded.rawJsonOptional().orElse("{}"));
+        }
+        return ResponseEntity.ok(loaded.normalized());
+    }
     
     /**
      * Minimal, temporary validation (we'll replace with a proper validator/handler)
