@@ -22,6 +22,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 # pick the bootable fat jar:
 COPY --from=build /workspace/app.jar /app/app.jar
+RUN ln -s /app/app.jar /app.jar
 # If your ai-service uses server.port: 8083 in application.yml,
 # we expose 8083 here; otherwise change both lines to 8080.
 EXPOSE 8083

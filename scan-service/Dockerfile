@@ -11,7 +11,7 @@ RUN mvn -q -pl scan-service -am clean package -DskipTests && \
 
 # ---------- Runtime stage ----------
 FROM eclipse-temurin:21-jre
-WORKDIR /
+WORKDIR /app
 
 # (a) Install Trivy
 RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/* && \
@@ -19,10 +19,11 @@ RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib
       | sh -s -- -b /usr/local/bin v0.67.2
 
 # (b) Copy the service JAR
-COPY --from=build /workspace/app.jar /app.jar
+COPY --from=build /workspace/app.jar /app/app.jar
+RUN ln -s /app/app.jar /app.jar
 
 # (c) App port
 EXPOSE 8080
 
 # (d) Run
-ENTRYPOINT ["java","-jar","/app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
