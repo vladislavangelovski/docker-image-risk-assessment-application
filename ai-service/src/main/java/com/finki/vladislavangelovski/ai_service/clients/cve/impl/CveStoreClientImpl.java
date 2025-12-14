@@ -18,7 +18,7 @@ public class CveStoreClientImpl implements CveStoreClient {
     private final WebClient cveWebClient;
     private final String byIdPath;
     private final String epssPath;
-    private final String configuredListPath;
+    private final String listPath;
 
     public CveStoreClientImpl(@Qualifier("cveStoreWebClient") WebClient cveStoreWebClient,
                               @Value("${services.cvestore.by-id-path}") String byIdPath,
@@ -27,7 +27,7 @@ public class CveStoreClientImpl implements CveStoreClient {
         this.cveWebClient = cveStoreWebClient;
         this.byIdPath = byIdPath;
         this.epssPath = epssPath;
-        this.configuredListPath = configuredListPath;
+        this.listPath = resolveListPath(byIdPath, configuredListPath);
     }
     
     // --------------------- helpers ---------------------
@@ -136,8 +136,6 @@ public class CveStoreClientImpl implements CveStoreClient {
     public List<CveForEmbedding> findCandidatesForEmbedding(int limit) {
         int size = (limit <= 0) ? 100 : Math.min(limit, 100); // CveEntryController caps size at 100
 
-        String listPath = resolveListPath();
-
         CvePageResponse page = cveWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(listPath)
@@ -166,9 +164,17 @@ public class CveStoreClientImpl implements CveStoreClient {
         return result;
     }
 
-    private String resolveListPath() {
+    private static String resolveListPath(String byIdPath, String configuredListPath) {
         if (configuredListPath != null && !configuredListPath.isBlank()) {
             return configuredListPath;
+        }
+
+        if (byIdPath == null || byIdPath.isBlank()) {
+            return "";
+        }
+
+        if (byIdPath.contains("/{cveId}")) {
+            return byIdPath.replace("/{cveId}", "");
         }
 
         int placeholder = byIdPath.indexOf("/{");

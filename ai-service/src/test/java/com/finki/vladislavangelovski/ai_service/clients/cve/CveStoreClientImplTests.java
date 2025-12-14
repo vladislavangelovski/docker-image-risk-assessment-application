@@ -2,6 +2,7 @@ package com.finki.vladislavangelovski.ai_service.clients.cve;
 
 import com.finki.vladislavangelovski.ai_service.clients.cve.impl.CveStoreClientImpl;
 import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -32,9 +33,18 @@ class CveStoreClientImplTests {
 
     @Test
     void fetchesFirstPageForEmbeddingCandidates() throws Exception {
-        server.enqueue(new MockResponse()
-                .setHeader("Content-Type", "application/json")
-                .setBody("{\"content\":[{\"cveId\":\"CVE-123\",\"description\":\"demo\"}]}"));
+        server.setDispatcher(new Dispatcher() {
+            @Override
+            public MockResponse dispatch(RecordedRequest request) {
+                if ("/api/v1/cves?page=0&size=1".equals(request.getPath())) {
+                    return new MockResponse()
+                            .setHeader("Content-Type", "application/json")
+                            .setBody("{\"content\":[{\"cveId\":\"CVE-123\",\"description\":\"demo\"}]}"
+                            );
+                }
+                return new MockResponse().setResponseCode(404);
+            }
+        });
 
         CveStoreClientImpl client = new CveStoreClientImpl(webClient(),
                 "/api/v1/cves/{cveId}",
