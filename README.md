@@ -62,3 +62,18 @@ SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
 # Run all unit + integration tests
 docker compose run --rm cve-store-service mvn test
 ```
+
+## Handling merge conflicts when updating a PR
+1. **Sync with the latest base branch**
+   ```bash
+   git fetch origin
+   git checkout work  # or your feature branch
+   git rebase origin/main
+   ```
+   Resolve any conflicts shown during the rebase. Use `git status` to confirm only resolved files remain.
+2. **Verify builds still pass**: run the relevant Maven module packages/tests and, if applicable, rebuild Docker images locally.
+3. **Update the PR branch**: force-push after the rebase to refresh the PR state.
+   ```bash
+   git push --force-with-lease origin work
+   ```
+4. **Re-request reviews** if reviewers were previously assigned so they see the conflict resolution changes.
