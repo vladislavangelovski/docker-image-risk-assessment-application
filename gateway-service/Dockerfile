@@ -1,18 +1,24 @@
-# ---- Build stage ----
+# ---------- Build stage ----------
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
-# Copy the repository to build the gateway module and its dependencies
+# Copy POMs first for incremental caching
+COPY pom.xml ./
+COPY gateway-service/pom.xml gateway-service/pom.xml
+COPY common/pom.xml common/pom.xml
+
+# Bring in the remaining sources
 COPY . .
 
+# Build only the gateway-service (and required modules) and isolate the runnable JAR
 RUN mvn -q -pl gateway-service -am clean package -DskipTests && \
     cp "$(ls gateway-service/target/*.jar | grep -v -- '-plain\\.jar' | head -n1)" /workspace/app.jar
 
-# ---- Runtime stage ----
+# ---------- Runtime stage ----------
 FROM eclipse-temurin:21-jre
-WORKDIR /
+WORKDIR /app
 
-COPY --from=build /workspace/app.jar /app.jar
+COPY --from=build /workspace/app.jar /app/app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
