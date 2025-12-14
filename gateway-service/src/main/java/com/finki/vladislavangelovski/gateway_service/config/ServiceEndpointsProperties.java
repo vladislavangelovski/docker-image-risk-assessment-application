@@ -32,4 +32,5 @@ public class ServiceEndpointsProperties {
     public void setAiBaseUrl(String aiBaseUrl) {
         this.aiBaseUrl = aiBaseUrl;
     }
+
 }

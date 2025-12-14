@@ -13,10 +13,11 @@ spring:
         response-timeout: 10s
       default-filters:
         - name: AuthenticationPlaceholderFilter
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOrigins: "${gateway.cors.allowed-origins:*}"
             allowedMethods: "*"
             allowedHeaders: "*"
       routes:
@@ -38,6 +39,17 @@ management:
     web:
       exposure:
         include: health,info
+  endpoint:
+    health:
+      status:
+        http-mapping:
+          degraded: 503
+      probes:
+        enabled: true
+
+gateway:
+  cors:
+    allowed-origins: "*"
 
 services:
   scan-base-url: http://scan-service:8080
