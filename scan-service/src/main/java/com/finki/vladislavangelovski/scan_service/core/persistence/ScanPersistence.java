@@ -34,4 +34,14 @@ public interface ScanPersistence {
      */
     Optional<LoadedScan> find(UUID scanId,
                               boolean includeRaw);
+
+    /**
+     * Load the most recent scan for a given image reference.
+     *
+     * @param image      image reference
+     * @param includeRaw whether to fetch raw JSON
+     * @return Optional present if found; empty if not found
+     */
+    Optional<LoadedScan> findLatestByImage(String image,
+                                           boolean includeRaw);
 }

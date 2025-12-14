@@ -31,7 +31,8 @@ class ScanClientImplTests {
     }
 
     @Test
-    void postsScanRequestAndParsesResponse() throws InterruptedException {
+    void postsScanRequestWhenNotCached() throws InterruptedException {
+        server.enqueue(new MockResponse().setResponseCode(404));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("{" +
@@ -42,6 +43,10 @@ class ScanClientImplTests {
         ScanClientImpl client = new ScanClientImpl(webClient(), "/api/v1/scans");
 
         var result = client.scanImage("nginx:1.25");
+
+        RecordedRequest lookup = server.takeRequest();
+        assertThat(lookup.getMethod()).isEqualTo("GET");
+        assertThat(lookup.getPath()).isEqualTo("/api/v1/scans?imageRef=nginx:1.25");
 
         RecordedRequest request = server.takeRequest();
         assertThat(request.getMethod()).isEqualTo("POST");
@@ -56,7 +61,32 @@ class ScanClientImplTests {
     }
 
     @Test
+    void reusesCachedScanWhenAvailable() throws InterruptedException {
+        server.enqueue(new MockResponse()
+                .setHeader("Content-Type", "application/json")
+                .setBody("{" +
+                        "\"image\":\"nginx:1.25\"," +
+                        "\"findings\":[{" +
+                        "\"cveId\":\"CVE-1\",\"package\":\"openssl\"}]}"));
+
+        ScanClientImpl client = new ScanClientImpl(webClient(), "/api/v1/scans");
+
+        var result = client.scanImage("nginx:1.25");
+
+        RecordedRequest request = server.takeRequest();
+        assertThat(request.getMethod()).isEqualTo("GET");
+        assertThat(request.getPath()).isEqualTo("/api/v1/scans?imageRef=nginx:1.25");
+        assertThat(server.getRequestCount()).isEqualTo(1);
+
+        assertThat(result).isNotNull();
+        assertThat(result.imageRef()).isEqualTo("nginx:1.25");
+        assertThat(result.findings()).hasSize(1);
+        assertThat(result.findings().getFirst().cveId()).isEqualTo("CVE-1");
+    }
+
+    @Test
     void surfacesScanErrorsWithoutFallback() {
+        server.enqueue(new MockResponse().setResponseCode(404));
         server.enqueue(new MockResponse()
                 .setResponseCode(500)
                 .setHeader("Content-Type", "application/json")
@@ -65,7 +95,7 @@ class ScanClientImplTests {
         ScanClientImpl client = new ScanClientImpl(webClient(), "/api/v1/scans");
 
         assertThrows(ScanClientException.class, () -> client.scanImage("nginx:latest"));
-        assertThat(server.getRequestCount()).isEqualTo(1);
+        assertThat(server.getRequestCount()).isEqualTo(2);
     }
 
     private WebClient webClient() {
