@@ -1,21 +1,18 @@
 # ---- Build stage ----
-FROM eclipse-temurin:21-jdk AS build
-WORKDIR /app
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /workspace
 
-# Copy the full repository to build the gateway module and its dependencies
+# Copy the repository to build the gateway module and its dependencies
 COPY . .
 
-RUN chmod +x ./mvnw && \
-    ./mvnw -q -pl gateway-service -am clean package -DskipTests spring-boot:repackage && \
-    mkdir -p /out && \
-    BOOT_JAR="$(ls gateway-service/target/*.jar | grep -v -- '-plain\\.jar' | head -n1)" && \
-    cp "$BOOT_JAR" /out/app.jar
+RUN mvn -q -pl gateway-service -am clean package -DskipTests && \
+    cp "$(ls gateway-service/target/*.jar | grep -v -- '-plain\\.jar' | head -n1)" /workspace/app.jar
 
 # ---- Runtime stage ----
 FROM eclipse-temurin:21-jre
 WORKDIR /
 
-COPY --from=build /out/app.jar /app.jar
+COPY --from=build /workspace/app.jar /app.jar
 
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app.jar"]
