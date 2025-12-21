@@ -29,6 +29,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      INGEST_ENABLED: "false"
 
   redis:
     image: redis:7
@@ -78,7 +79,7 @@ services:
     ports:
       - "11434:11434"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       retries: 5
     restart: unless-stopped
