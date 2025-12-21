@@ -25,7 +25,7 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
     public JdbcVectorStoreRepository(JdbcTemplate jdbc,
                                      @Value("${vectorstore.table}") String table,
                                      @Value("${embeddings.expected-dim}") int expectedDim,
-                                     @Value("$(embeddings.model)") String embedModel,
+                                     @Value("${embeddings.model}") String embedModel,
                                      @Value("${embeddings.version:initial}") String embedVersion) {
         this.jdbc = jdbc;
         this.table = table;
