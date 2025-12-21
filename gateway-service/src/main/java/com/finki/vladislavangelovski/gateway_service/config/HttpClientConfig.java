@@ -15,7 +15,7 @@ public class HttpClientConfig {
     public HttpClient gatewayHttpClient() {
         return HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .responseTimeout(Duration.ofSeconds(10));
+                .responseTimeout(Duration.ofSeconds(180));
     }
 
     @Bean

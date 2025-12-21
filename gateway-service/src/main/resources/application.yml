@@ -10,7 +10,7 @@ spring:
     gateway:
       httpclient:
         connect-timeout: 5000
-        response-timeout: 10s
+        response-timeout: 180s
       default-filters:
         - name: AuthenticationPlaceholderFilter
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
@@ -29,10 +29,30 @@ spring:
           uri: ${services.cve-store-base-url}
           predicates:
             - Path=/api/v1/cves/**
-        - id: ai-service
+        # ai-service (Assessment)
+        - id: ai-service-assess
           uri: ${services.ai-base-url}
           predicates:
-            - Path=/api/v1/ai/**
+            - Path=/api/v1/assess/**
+          filters:
+            - 'RewritePath=/api/v1/assess(?<segment>/?.*), /api/assess${segment}'
+
+        # ai-service (QA)
+        - id: ai-service-qa
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/v1/qa/**
+          filters:
+            - 'RewritePath=/api/v1/qa(?<segment>/?.*), /api/qa${segment}'
+
+        # ai-service (Admin embeddings) — useful for reindex/search later
+        - id: ai-service-admin-embeddings
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/v1/admin/embeddings/**
+          filters:
+            - 'RewritePath=/api/v1/admin/embeddings(?<segment>/?.*), /api/admin/embeddings${segment}'
+
 
 management:
   endpoints:
