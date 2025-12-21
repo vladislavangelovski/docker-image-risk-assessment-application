@@ -55,3 +55,13 @@ spring:
         options:
           model: llama3.2:3b-instruct-fp16
           temperature: 0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      probes:
+        enabled: true

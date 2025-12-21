@@ -134,6 +134,10 @@ services:
       VECTORSTORE_DATASOURCE_USERNAME: risk
       VECTORSTORE_DATASOURCE_PASSWORD: dev
 
+    ports:
+      - "8083:8083"
+
+
   gateway-service:
     build:
       context: .
