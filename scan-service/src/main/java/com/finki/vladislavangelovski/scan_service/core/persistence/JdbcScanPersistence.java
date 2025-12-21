@@ -53,7 +53,7 @@ public class JdbcScanPersistence implements ScanPersistence {
                    total, critical, high, medium, low, unknown, fix_available
             FROM scan.scans WHERE scan_id = :scan_id
             """;
-
+    
     private static final String SQL_SELECT_LATEST_BY_IMAGE = """
             SELECT scan_id, image, digest, scanner_version,
                    started_at, finished_at,
@@ -87,6 +87,26 @@ public class JdbcScanPersistence implements ScanPersistence {
         this.mapper = mapper;
     }
     
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+    
+    private static int sevCount(Map<Severity, Integer> map,
+                                Severity key) {
+        return map != null ? map.getOrDefault(key, 0) : 0;
+    }
+    
+    private static Severity parseSeverity(String s) {
+        if (s == null) {
+            return Severity.UNKNOWN;
+        }
+        try {
+            return Severity.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return Severity.UNKNOWN;
+        }
+    }
+    
     @Override
     @Transactional
     public void save(UUID scanId,
@@ -103,7 +123,7 @@ public class JdbcScanPersistence implements ScanPersistence {
                 .addValue("os_family", null)
                 .addValue("os_version", null)
                 .addValue("started_at", Timestamp.from(normalized.startedAt()))
-                .addValue("finished_at", Timestamp.from(normalized.startedAt()))
+                .addValue("finished_at", Timestamp.from(normalized.finishedAt()))
                 .addValue("total", summary.total())
                 .addValue("critical", sevCount(sev, Severity.CRITICAL))
                 .addValue("high", sevCount(sev, Severity.HIGH))
@@ -133,13 +153,13 @@ public class JdbcScanPersistence implements ScanPersistence {
                                      boolean includeRaw) {
         return loadSingle(SQL_SELECT_SCAN, new MapSqlParameterSource("scan_id", scanId), includeRaw);
     }
-
+    
     @Override
     public Optional<LoadedScan> findLatestByImage(String image,
                                                   boolean includeRaw) {
         return loadSingle(SQL_SELECT_LATEST_BY_IMAGE, new MapSqlParameterSource("image", image), includeRaw);
     }
-
+    
     private Optional<LoadedScan> loadSingle(String selectSql,
                                             MapSqlParameterSource params,
                                             boolean includeRaw) {
@@ -150,29 +170,29 @@ public class JdbcScanPersistence implements ScanPersistence {
             sev.put(Severity.MEDIUM, rs.getInt("medium"));
             sev.put(Severity.LOW, rs.getInt("low"));
             sev.put(Severity.UNKNOWN, rs.getInt("unknown"));
-
+            
             var summary = new com.finki.vladislavangelovski.scan_service.api.dto.Summary(rs.getInt("total"),
                                                                                          java.util.Map.copyOf(sev),
                                                                                          rs.getInt("fix_available"));
-
+            
             return new Object[]{
                     rs.getObject("scan_id", java.util.UUID.class), rs.getString("image"), rs.getString("digest"),
                     rs.getString("scanner_version"), rs.getTimestamp("started_at").toInstant(),
                     rs.getTimestamp("finished_at").toInstant(), summary
             };
         });
-
+        
         if (scans.isEmpty()) {
             return Optional.empty();
         }
         var row = scans.get(0);
         var scanId = (UUID) row[0];
-
+        
         var findings = jdbc.query(SQL_SELECT_FINDINGS, new MapSqlParameterSource("scan_id", scanId), (rs, rn) -> {
             var cvss = rs.getString("cvss_source") != null || rs.getBigDecimal("cvss_score") != null || rs.getString(
                     "cvss_vector") != null ? new com.finki.vladislavangelovski.scan_service.api.dto.Cvss(
                     rs.getString("cvss_source"), rs.getBigDecimal("cvss_score"), rs.getString("cvss_vector")) : null;
-
+            
             java.util.List<String> refs;
             try {
                 var json = rs.getString("ref_urls");
@@ -182,9 +202,9 @@ public class JdbcScanPersistence implements ScanPersistence {
             } catch (Exception e) {
                 refs = java.util.List.of();
             }
-
+            
             var sev = parseSeverity(rs.getString("severity"));
-
+            
             return new com.finki.vladislavangelovski.scan_service.api.dto.Finding(rs.getString("cve_id"),
                                                                                   rs.getString("package"),
                                                                                   rs.getString("installed_version"),
@@ -192,14 +212,14 @@ public class JdbcScanPersistence implements ScanPersistence {
                                                                                   rs.getString("severity_source"), cvss,
                                                                                   refs, rs.getString("source_target"));
         });
-
+        
         String raw = null;
         if (includeRaw) {
-            raw = jdbc.query(SQL_SELECT_RAW, new MapSqlParameterSource("scan_id", scanId), (rs) -> rs.next() ? rs.getString(1) : null);
+            raw = jdbc.query(SQL_SELECT_RAW, new MapSqlParameterSource("scan_id", scanId),
+                             (rs) -> rs.next() ? rs.getString(1) : null);
         }
-
-        var scanResult = new com.finki.vladislavangelovski.scan_service.api.dto.ScanResult(scanId,
-                                                                                           (String) row[1],
+        
+        var scanResult = new com.finki.vladislavangelovski.scan_service.api.dto.ScanResult(scanId, (String) row[1],
                                                                                            (String) row[2],
                                                                                            (String) row[3],
                                                                                            (java.time.Instant) row[4],
@@ -207,17 +227,8 @@ public class JdbcScanPersistence implements ScanPersistence {
                                                                                            (com.finki.vladislavangelovski.scan_service.api.dto.Summary) row[6],
                                                                                            java.util.List.copyOf(
                                                                                                    findings));
-
+        
         return Optional.of(new LoadedScan(scanId, scanResult, raw));
-    }
-    
-    private static String nz(String s) {
-        return s == null ? "" : s;
-    }
-    
-    private static int sevCount(Map<Severity, Integer> map,
-                                Severity key) {
-        return map != null ? map.getOrDefault(key, 0) : 0;
     }
     
     private MapSqlParameterSource mapFinding(UUID scanId,
@@ -247,16 +258,5 @@ public class JdbcScanPersistence implements ScanPersistence {
                 .addValue("cvss_vector", cvss != null ? cvss.vector() : null)
                 .addValue("source_target", f.sourceTarget())
                 .addValue("ref_urls", refsJson);
-    }
-    
-    private static Severity parseSeverity(String s) {
-        if (s == null) {
-            return Severity.UNKNOWN;
-        }
-        try {
-            return Severity.valueOf(s.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            return Severity.UNKNOWN;
-        }
     }
 }
