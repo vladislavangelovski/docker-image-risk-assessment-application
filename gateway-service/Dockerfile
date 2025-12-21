@@ -18,6 +18,8 @@ RUN mvn -q -pl gateway-service -am clean package -DskipTests && \
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /workspace/app.jar /app/app.jar
 RUN ln -s /app/app.jar /app.jar
 

@@ -14,7 +14,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # (a) Install Trivy
-RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/* && \
+RUN apt-get update && apt-get install -y ca-certificates curl wget && rm -rf /var/lib/apt/lists/* && \
     curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
       | sh -s -- -b /usr/local/bin v0.67.2
 
