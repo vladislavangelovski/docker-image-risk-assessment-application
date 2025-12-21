@@ -46,6 +46,66 @@ public class AssessmentServiceImpl implements AssessmentService {
         this.vectorSearchService = vectorSearchService;
     }
     
+    private static RiskBand band(int score) {
+        if (score >= 75) {
+            return RiskBand.CRITICAL;
+        }
+        if (score >= 50) {
+            return RiskBand.HIGH;
+        }
+        if (score >= 25) {
+            return RiskBand.MEDIUM;
+        }
+        return RiskBand.LOW;
+    }
+    
+    private static String pickBestUrl(CveForEmbedding d) {
+        if (d.references() != null && !d.references().isEmpty()) {
+            var first = d.references().get(0);
+            if (first != null && first.getUrl() != null && !first.getUrl().isBlank()) {
+                return first.getUrl();
+            }
+        }
+        
+        return "https://nvd.nist.gov/vuln/detail/" + d.cveId();
+    }
+    
+    private static String buildQuery(String cveId,
+                                     List<String> pkgs,
+                                     String fallbackTitle) {
+        String pkgPart = (pkgs == null || pkgs.isEmpty()) ? "" : " " + String.join(", ", pkgs);
+        String titlePart = (fallbackTitle != null && !fallbackTitle.isBlank()) ? (" " + fallbackTitle) : "";
+        return cveId + pkgPart + titlePart;
+    }
+    
+    private static String truncate(String s,
+                                   int max) {
+        if (s == null) {
+            return null;
+        }
+        
+        return s.length() <= max ? s : s.substring(0, Math.max(0, max - 1)) + "...";
+    }
+    
+    private static String mostCommonPackagesSummary(List<TopFinding> tfs,
+                                                    int maxPkgs) {
+        Map<String, Integer> freq = new LinkedHashMap<>();
+        for (TopFinding tf : tfs) {
+            if (tf.packages() == null) {
+                continue;
+            }
+            for (String p : tf.packages()) {
+                freq.merge(p, 1, Integer::sum);
+            }
+        }
+        return freq.entrySet()
+                .stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(maxPkgs)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.joining(", "));
+    }
+    
     @Override
     public AssessImageResponse assessImage(AssessImageRequest request) {
         int k = request.k() != null ? request.k() : kDefault;
@@ -118,7 +178,9 @@ public class AssessmentServiceImpl implements AssessmentService {
             sCveById.put(cveId, sCve);
             
             String url = pickBestUrl(d);
-            String summary = (d.title() != null && !d.title().isBlank()) ? d.title() : "Vulnerability " + cveId;
+            String summary = (d.description() != null && !d.description().isBlank()) ? truncate(
+                    d.description().replaceAll("\\s+", " "), 160) : (d.title() != null && !d.title()
+                    .isBlank()) ? d.title() : "Vulnerability " + cveId;
             
             TopFinding tf = new TopFinding(cveId, epss, percentile, cvss, packagesByCve.getOrDefault(cveId, List.of()),
                                            summary, url, fixByCve.getOrDefault(cveId, false));
@@ -137,25 +199,20 @@ public class AssessmentServiceImpl implements AssessmentService {
         int overall = RiskScoring.overallImageScore(topFindings, epssMap);
         RiskBand band = band(overall);
         
-        final int perFinding = 2;
-        final int maxTotal = 6;
-        final double minSim = 0.62;
-        
-        List<Citation> citations = new ArrayList<>();
+        List<Citation> citations = new ArrayList<>(topFindings.size());
+        Set<String> seen = new LinkedHashSet<>();
         for (TopFinding tf : topFindings) {
-            List<Citation> sem = semanticCitationsFor(tf.cveId(), tf.packages(), tf.summary(), perFinding, minSim);
-            if (sem.isEmpty()) {
-                sem = List.of(new Citation(tf.cveId(), tf.url(), tf.summary()));
+            if (tf == null || tf.cveId() == null) {
+                continue;
             }
             
-            for (Citation c : sem) {
-                if (citations.size() >= maxTotal) {
-                    break;
-                }
-                citations.add(c);
-            }
-            if (citations.size() >= maxTotal) {
-                break;
+            if (seen.add(tf.cveId())) {
+                CveForEmbedding d = details.get(tf.cveId());
+                
+                String snippet = (d != null && d.description() != null && !d.description().isBlank()) ? truncate(
+                        d.description().replaceAll("\\s+", " "), 180) : tf.summary();
+                
+                citations.add(new Citation(tf.cveId(), tf.url(), snippet));
             }
         }
         
@@ -175,47 +232,6 @@ public class AssessmentServiceImpl implements AssessmentService {
         return new AssessImageResponse(request.imageRef(), overall, band, topFindings, explanation, citations);
     }
     
-    private static RiskBand band(int score) {
-        if (score >= 75) {
-            return RiskBand.CRITICAL;
-        }
-        if (score >= 50) {
-            return RiskBand.HIGH;
-        }
-        if (score >= 25) {
-            return RiskBand.MEDIUM;
-        }
-        return RiskBand.LOW;
-    }
-    
-    private static String pickBestUrl(CveForEmbedding d) {
-        if (d.references() != null && !d.references().isEmpty()) {
-            var first = d.references().get(0);
-            if (first != null && first.getUrl() != null && !first.getUrl().isBlank()) {
-                return first.getUrl();
-            }
-        }
-        
-        return "https://nvd.nist.gov/vuln/detail/" + d.cveId();
-    }
-    
-    private static String buildQuery(String cveId,
-                                     List<String> pkgs,
-                                     String fallbackTitle) {
-        String pkgPart = (pkgs == null || pkgs.isEmpty()) ? "" : " " + String.join(", ", pkgs);
-        String titlePart = (fallbackTitle != null && !fallbackTitle.isBlank()) ? (" " + fallbackTitle) : "";
-        return cveId + pkgPart + titlePart;
-    }
-    
-    private static String truncate(String s,
-                                   int max) {
-        if (s == null) {
-            return null;
-        }
-        
-        return s.length() <= max ? s : s.substring(0, Math.max(0, max - 1)) + "...";
-    }
-    
     private List<Citation> semanticCitationsFor(String cveId,
                                                 List<String> pkgs,
                                                 String titleOrDesc,
@@ -232,24 +248,5 @@ public class AssessmentServiceImpl implements AssessmentService {
                                                ? truncate(
                                                h.description(), 180) : ("Relevant evidence for " + h.cveId())))
                 .toList();
-    }
-    
-    private static String mostCommonPackagesSummary(List<TopFinding> tfs,
-                                                    int maxPkgs) {
-        Map<String, Integer> freq = new LinkedHashMap<>();
-        for (TopFinding tf : tfs) {
-            if (tf.packages() == null) {
-                continue;
-            }
-            for (String p : tf.packages()) {
-                freq.merge(p, 1, Integer::sum);
-            }
-        }
-        return freq.entrySet()
-                .stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(maxPkgs)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.joining(", "));
     }
 }
