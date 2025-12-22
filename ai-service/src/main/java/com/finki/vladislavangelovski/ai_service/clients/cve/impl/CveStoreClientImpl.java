@@ -155,7 +155,8 @@ public class CveStoreClientImpl implements CveStoreClient {
             if (e == null || e.getCveId() == null || e.getCveId().isBlank()) {
                 continue;
             }
-            var mapped = toEmbedding(e, null); // use flattened EPSS from CveEntryDto if present
+            var latestEpss = fetchLatestEpss(e.getCveId()).orElse(null);
+            var mapped = toEmbedding(e, latestEpss);
             if (mapped != null) {
                 result.add(mapped);
             }
