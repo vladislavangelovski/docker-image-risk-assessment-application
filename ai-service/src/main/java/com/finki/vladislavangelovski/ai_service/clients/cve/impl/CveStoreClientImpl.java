@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -82,15 +83,20 @@ public class CveStoreClientImpl implements CveStoreClient {
     }
     
     private Optional<EpssScoreDto> fetchLatestEpss(String cveId) {
-        var list = cveWebClient.get()
-                .uri(uri -> uri.path(epssPath).queryParam("limit", 1).build(cveId))
-                .retrieve()
-                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<List<EpssScoreDto>>() {})
-                .block();
-        
-        return (list != null && !list.isEmpty())
-                ? Optional.ofNullable(list.get(0))
-                : Optional.empty();
+        try {
+            var list = cveWebClient.get()
+                    .uri(uri -> uri.path(epssPath).queryParam("limit", 1).build(cveId))
+                    .retrieve()
+                    .bodyToMono(new org.springframework.core.ParameterizedTypeReference<List<EpssScoreDto>>() {})
+                    .block();
+            
+            return (list != null && !list.isEmpty())
+                    ? Optional.ofNullable(list.get(0))
+                    : Optional.empty();
+            
+        } catch (WebClientResponseException.NotFound ex) {
+            return Optional.empty();
+        }
     }
     
     // --------------------- interface methods ---------------------
