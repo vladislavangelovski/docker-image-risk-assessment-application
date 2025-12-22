@@ -28,22 +28,40 @@ public class EmbeddingSearchRepositoryPg implements EmbeddingSearchRepository {
         return sb.toString();
     }
     
-    private static final RowMapper<SearchHit> MAPPER = (rs, i) -> new SearchHit(rs.getString("cve_id"),
-                                                                                rs.getString("title"),
-                                                                                rs.getString("description"),
-                                                                                (Double) rs.getObject("epss"),
-                                                                                (Double) rs.getObject("cvss_base"),
-                                                                                rs.getDouble("sim"));
+    private static final RowMapper<SearchHit> MAPPER = (rs, i) -> new SearchHit(
+            rs.getString("cve_id"),
+            rs.getString("title"),
+            rs.getString("description"),
+            toNullableDouble(rs.getObject("epss")),
+            toNullableDouble(rs.getObject("cvss_base")),
+            rs.getDouble("sim")
+    );
+    
+    private static Double toNullableDouble(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.valueOf(value.toString());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
     
     @Override
-    public List<SearchHit> search(double[] queryEmbedding,
-                                  int k) {
-        // If your index is vector_cosine_ops, <=> is cosine distance.
-        // Similarity = 1 - distance (range ~0..1)
+    public List<SearchHit> search(double[] queryEmbedding, int k) {
         final String vec = toPgVectorLiteral(queryEmbedding);
-        final String sql = "WITH q AS (SELECT ?::vector AS v) " + "SELECT cve_id, title, description, epss, " +
-                "cvss_base, " + "       1 - (embedding <=> q.v) AS sim " + "FROM cve_embeddings, q " + "ORDER BY " +
-                "embedding <=> q.v " + "LIMIT ?";
+        final String sql =
+                "WITH q AS (SELECT ?::vector AS v) " +
+                        "SELECT cve_id, title, description, epss, cvss_base, " +
+                        "       1 - (embedding <=> q.v) AS sim " +
+                        "FROM cve_embeddings, q " +
+                        "ORDER BY embedding <=> q.v " +
+                        "LIMIT ?";
+        
         return jdbc.query(sql, ps -> {
             ps.setString(1, vec);
             ps.setInt(2, k);

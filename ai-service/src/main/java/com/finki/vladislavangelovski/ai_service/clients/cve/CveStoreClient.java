@@ -12,4 +12,6 @@ public interface CveStoreClient {
     
     List<CveForEmbedding> findCandidatesForEmbedding(int limit);
     
+    List<CveForEmbedding> findCandidatesForEmbeddingPage(int page, int size);
+    
 }

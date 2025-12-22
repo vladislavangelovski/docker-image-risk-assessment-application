@@ -10,12 +10,21 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class EmbeddingIndexService {
     private final CveStoreClient cveClient;
     private final EmbeddingsClient embeddings;
     private final VectorStoreRepository vectorRepo;
+    
+    /**
+     * Dev-friendly cursor used only by the “index next batch” endpoint to move
+     * past page 0 without the caller having to supply a page param.
+     *
+     * NOTE: This is intentionally in-memory (single instance in docker-compose).
+     */
+    private final AtomicInteger autoPageCursor = new AtomicInteger(0);
     
     public EmbeddingIndexService(CveStoreClient cveClient,
                                  EmbeddingsClient embeddings,
@@ -58,7 +67,6 @@ public class EmbeddingIndexService {
             
             String title = d.title() != null ? d.title() : d.cveId();
             String desc = d.description() != null ? d.description() : "";
-            // minimal concat; can be tuned later (truncate, sanitize, etc.)
             texts.add(title + "\n\n" + desc);
         }
         if (docs.isEmpty()) {
@@ -76,15 +84,46 @@ public class EmbeddingIndexService {
     }
     
     public int indexNextBatch(int batchSize) {
-        int size = (batchSize <= 0) ? 1000 : batchSize;
+        int target = (batchSize <= 0) ? 50 : batchSize;
+        int pageSize = Math.min(Math.max(target, 1), 100); // cve-store caps size at 100
         
-        // Ask CVE store for candidates
-        var docs = cveClient.findCandidatesForEmbedding(size);
-        if (docs == null || docs.isEmpty()) {
+        int page = autoPageCursor.get();
+        List<CveForEmbedding> docs = new ArrayList<>(target);
+        
+        // Safety: don't loop forever if data changes
+        for (int guard = 0; guard < 10_000 && docs.size() < target; guard++) {
+            var candidates = cveClient.findCandidatesForEmbeddingPage(page, pageSize);
+            if (candidates == null || candidates.isEmpty()) {
+                autoPageCursor.set(0);
+                break;
+            }
+            
+            boolean reachedTargetMidPage = false;
+            for (CveForEmbedding d : candidates) {
+                if (d == null || d.cveId() == null || d.cveId().isBlank()) {
+                    continue;
+                }
+                if (!vectorRepo.existsByCveId(d.cveId())) {
+                    docs.add(d);
+                }
+                if (docs.size() >= target) {
+                    reachedTargetMidPage = true;
+                    break;
+                }
+            }
+            
+            // If we stopped mid-page, keep the cursor on the same page so next run can pick up
+            // remaining (not-yet-indexed) CVEs from this page.
+            if (!reachedTargetMidPage) {
+                page++;
+            }
+            autoPageCursor.set(page);
+        }
+        
+        if (docs.isEmpty()) {
             return 0;
         }
         
-        // Build texts to embed (same as indexByIds)
         List<String> texts = new ArrayList<>(docs.size());
         for (CveForEmbedding d : docs) {
             String title = d.title() != null ? d.title() : d.cveId();

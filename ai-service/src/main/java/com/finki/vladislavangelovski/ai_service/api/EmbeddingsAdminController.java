@@ -49,8 +49,7 @@ public class EmbeddingsAdminController {
     /**
      * POST /api/admin/embeddings/index  { "cveIds": ["CVE-2024-6119","CVE-2025-27363"] }
      */
-    @PostMapping(value = "/index", consumes = MediaType.APPLICATION_JSON_VALUE, produces =
-            MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/index", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public IndexResponse index(@RequestBody(required = false) IndexRequest req) {
         List<String> ids = (req == null || req.getCveIds() == null)
                 ? List.of()
@@ -58,8 +57,8 @@ public class EmbeddingsAdminController {
         
         int upserted;
         if (ids.isEmpty()) {
-            // auto-batch mode
-            upserted = indexService.indexNextBatch(50);
+            // auto-batch mode (dev-safe default)
+            upserted = indexService.indexNextBatch(20);
             return new IndexResponse(0, upserted);
         } else {
             upserted = indexService.indexByIds(ids);

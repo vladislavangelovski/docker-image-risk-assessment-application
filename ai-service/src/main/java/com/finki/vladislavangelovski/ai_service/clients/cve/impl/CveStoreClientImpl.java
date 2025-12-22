@@ -19,7 +19,7 @@ public class CveStoreClientImpl implements CveStoreClient {
     private final String byIdPath;
     private final String epssPath;
     private final String listPath;
-
+    
     public CveStoreClientImpl(@Qualifier("cveStoreWebClient") WebClient cveStoreWebClient,
                               @Value("${services.cvestore.by-id-path}") String byIdPath,
                               @Value("${services.cvestore.epss-path}") String epssPath,
@@ -97,7 +97,6 @@ public class CveStoreClientImpl implements CveStoreClient {
     
     @Override
     public CveForEmbedding getById(String cveId) {
-        // NOTE: we fetch CveEntryDto, not CveForEmbedding, from cve-store-service
         var base = cveWebClient.get()
                 .uri(byIdPath, cveId)
                 .retrieve()
@@ -134,29 +133,36 @@ public class CveStoreClientImpl implements CveStoreClient {
     
     @Override
     public List<CveForEmbedding> findCandidatesForEmbedding(int limit) {
-        int size = (limit <= 0) ? 100 : Math.min(limit, 100); // CveEntryController caps size at 100
-
-        CvePageResponse page = cveWebClient.get()
+        int size = (limit <= 0) ? 100 : Math.min(limit, 100); // cve-store caps size at 100
+        return findCandidatesForEmbeddingPage(0, size);
+    }
+    
+    @Override
+    public List<CveForEmbedding> findCandidatesForEmbeddingPage(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? 100 : Math.min(size, 100); // cve-store caps size at 100
+        
+        CvePageResponse response = cveWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(listPath)
-                        .queryParam("page", 0)
-                        .queryParam("size", size)
+                        .queryParam("page", safePage)
+                        .queryParam("size", safeSize)
                         .build())
                 .retrieve()
                 .bodyToMono(CvePageResponse.class)
                 .block();
         
-        if (page == null || page.content == null || page.content.isEmpty()) {
+        if (response == null || response.content == null || response.content.isEmpty()) {
             return List.of();
         }
         
-        List<CveForEmbedding> result = new ArrayList<>(page.content.size());
-        for (CveEntryDto e : page.content) {
+        List<CveForEmbedding> result = new ArrayList<>(response.content.size());
+        for (CveEntryDto e : response.content) {
             if (e == null || e.getCveId() == null || e.getCveId().isBlank()) {
                 continue;
             }
-            var latestEpss = fetchLatestEpss(e.getCveId()).orElse(null);
-            var mapped = toEmbedding(e, latestEpss);
+            // Use flattened EPSS from CveEntryDto if present (cve-store joins latest EPSS)
+            var mapped = toEmbedding(e, null);
             if (mapped != null) {
                 result.add(mapped);
             }
@@ -164,20 +170,20 @@ public class CveStoreClientImpl implements CveStoreClient {
         
         return result;
     }
-
+    
     private static String resolveListPath(String byIdPath, String configuredListPath) {
         if (configuredListPath != null && !configuredListPath.isBlank()) {
             return configuredListPath;
         }
-
+        
         if (byIdPath == null || byIdPath.isBlank()) {
             return "";
         }
-
+        
         if (byIdPath.contains("/{cveId}")) {
             return byIdPath.replace("/{cveId}", "");
         }
-
+        
         int placeholder = byIdPath.indexOf("/{");
         return (placeholder > 0) ? byIdPath.substring(0, placeholder) : byIdPath;
     }

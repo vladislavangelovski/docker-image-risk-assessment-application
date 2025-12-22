@@ -63,7 +63,13 @@ public class WebClientConfig {
 
     @Bean("embeddingsWebClient")
     public WebClient embeddingsWebClient(@Value("${embeddings.base-url}") String baseUrl) {
-        return baseWebClientBuilder(16 * 1024 * 1024).baseUrl(baseUrl).build();
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(Duration.ofSeconds(180));
+        
+        return baseWebClientBuilder(16 * 1024 * 1024)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .baseUrl(baseUrl)
+                .build();
     }
 
     private WebClient.Builder baseWebClientBuilder(int maxInMemoryBytes) {
