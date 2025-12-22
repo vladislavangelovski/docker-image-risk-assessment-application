@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -51,7 +52,8 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
     }
     
     @Override
-    public void upsertAll(List<CveForEmbedding> docs, List<float[]> vectors) {
+    public void upsertAll(List<CveForEmbedding> docs,
+                          List<float[]> vectors) {
         if (docs == null || docs.isEmpty()) {
             return;
         }
@@ -96,7 +98,8 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
         
         jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
+            public void setValues(PreparedStatement ps,
+                                  int i) throws SQLException {
                 CveForEmbedding doc = docs.get(i);
                 float[] vector = vectors.get(i);
                 
@@ -116,7 +119,8 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
                 String chunkText;
                 if (description != null && !description.isBlank()) {
                     chunkText = title + "\n\n" + description;
-                } else {
+                }
+                else {
                     chunkText = title;
                 }
                 
@@ -138,7 +142,8 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
                 // 4) description (nullable)
                 if (description != null) {
                     ps.setString(4, description);
-                } else {
+                }
+                else {
                     ps.setNull(4, Types.VARCHAR);
                 }
                 // 5) chunk_text (NOT NULL)
@@ -147,42 +152,48 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
                 // 6) cvss_base
                 if (doc.cvssBase() != null) {
                     ps.setDouble(6, doc.cvssBase());
-                } else {
+                }
+                else {
                     ps.setNull(6, Types.DOUBLE);
                 }
                 
                 // 7) epss
                 if (doc.epss() != null) {
                     ps.setDouble(7, doc.epss());
-                } else {
+                }
+                else {
                     ps.setNull(7, Types.DOUBLE);
                 }
                 
                 // 8) epss_percentile
                 if (doc.epssPercentile() != null) {
                     ps.setDouble(8, doc.epssPercentile());
-                } else {
+                }
+                else {
                     ps.setNull(8, Types.DOUBLE);
                 }
                 
                 // 9) cwe (comma-separated)
                 if (cwe != null && !cwe.isBlank()) {
                     ps.setString(9, cwe);
-                } else {
+                }
+                else {
                     ps.setNull(9, Types.VARCHAR);
                 }
                 
                 // 10) published (TIMESTAMPTZ)
                 if (published != null) {
                     ps.setObject(10, OffsetDateTime.ofInstant(published, ZoneOffset.UTC));
-                } else {
+                }
+                else {
                     ps.setNull(10, Types.TIMESTAMP_WITH_TIMEZONE);
                 }
                 
                 // 11) last_modified (TIMESTAMPTZ)
                 if (lastModified != null) {
                     ps.setObject(11, OffsetDateTime.ofInstant(lastModified, ZoneOffset.UTC));
-                } else {
+                }
+                else {
                     ps.setNull(11, Types.TIMESTAMP_WITH_TIMEZONE);
                 }
                 
@@ -221,8 +232,18 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
             ps.setString(1, literal);
             ps.setString(2, literal);
             ps.setInt(3, k);
-        }, (rs, rowNum) -> new SearchHit(rs.getString("cve_id"), rs.getDouble("distance"), rs.getString("title"),
-                                         (Double) rs.getObject("epss"), (Double) rs.getObject("cvss_base")));
+        }, (rs, rowNum) -> {
+            BigDecimal epss = rs.getBigDecimal("epss");
+            BigDecimal cvss = rs.getBigDecimal("cvss_base");
+            
+            return new SearchHit(
+                    rs.getString("cve_id"),
+                    rs.getDouble("distance"),
+                    rs.getString("title"),
+                    epss != null ? epss.doubleValue() : null,
+                    cvss != null ? cvss.doubleValue() : null
+            );
+        });
     }
     
     @Override
