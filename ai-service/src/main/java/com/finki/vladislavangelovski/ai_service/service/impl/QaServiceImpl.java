@@ -3,6 +3,7 @@ package com.finki.vladislavangelovski.ai_service.service.impl;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanFinding;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanResult;
+import com.finki.vladislavangelovski.ai_service.qa.SemanticClaimService;
 import com.finki.vladislavangelovski.ai_service.qa.SemanticQuestionService;
 import com.finki.vladislavangelovski.ai_service.service.QaService;
 import com.finki.vladislavangelovski.common.dto.*;
@@ -15,11 +16,14 @@ import java.util.stream.Collectors;
 public class QaServiceImpl implements QaService {
     
     private final SemanticQuestionService semanticQuestionService;
+    private final SemanticClaimService semanticClaimService;
     private final ScanClient scanClient;
     
     public QaServiceImpl(SemanticQuestionService semanticQuestionService,
+                         SemanticClaimService semanticClaimService,
                          ScanClient scanClient) {
         this.semanticQuestionService = semanticQuestionService;
+        this.semanticClaimService = semanticClaimService;
         this.scanClient = scanClient;
     }
     
@@ -49,9 +53,7 @@ public class QaServiceImpl implements QaService {
             if (f == null || f.cveId() == null || f.cveId().isBlank()) continue;
             
             List<String> pkgs = f.packages() != null ? f.packages() : List.of();
-            packagesByCve
-                    .computeIfAbsent(f.cveId(), id -> new ArrayList<>())
-                    .addAll(pkgs);
+            packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>()).addAll(pkgs);
         }
         
         Set<String> allowedCves = packagesByCve.keySet();
@@ -75,10 +77,48 @@ public class QaServiceImpl implements QaService {
     
     @Override
     public QaClaimResponse judge(QaClaimRequest request) {
-        List<Citation> citations = List.of(
-                new Citation("CVE-2021-44228", "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
-                             "Log4j RCE (Log4Shell)"));
-        return new QaClaimResponse(Verdict.INSUFFICIENT,
-                                   "Stub verdict: insufficient evidence to confirm or deny the claim.", citations);
+        String imageRef = request.imageRef();
+        boolean hasImage = imageRef != null && !imageRef.isBlank();
+        
+        if (!hasImage) {
+            return semanticClaimService.judgeClaim(request, null, null, null);
+        }
+        
+        ScanResult scan;
+        
+        try {
+            scan = scanClient.scanImage(imageRef);
+        } catch (Exception e) {
+            return semanticClaimService.judgeClaim(request, null, null, null);
+        }
+        
+        if (scan == null || scan.findings() == null || scan.findings().isEmpty()) {
+            return semanticClaimService.judgeClaim(request, null, null, null);
+        }
+        
+        Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
+        for (ScanFinding f : scan.findings()) {
+            if (f == null || f.cveId() == null || f.cveId().isBlank()) continue;
+            
+            List<String> pkgs = f.packages() != null ? f.packages() : List.of();
+            packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>()).addAll(pkgs);
+        }
+        
+        Set<String> allowedCves = packagesByCve.keySet();
+        
+        if (allowedCves.isEmpty()) {
+            return semanticClaimService.judgeClaim(request, null, null, null);
+        }
+        
+        Map<String, List<String>> safePackagesByCve = packagesByCve.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> List.copyOf(e.getValue()),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+        
+        return semanticClaimService.judgeClaim(request, allowedCves, safePackagesByCve, scan.findings());
+        
     }
 }

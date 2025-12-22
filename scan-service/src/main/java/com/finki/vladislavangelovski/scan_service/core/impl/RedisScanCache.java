@@ -30,7 +30,15 @@ public class RedisScanCache implements ScanCache {
                     Duration ttl) throws CacheWriteException {
         try {
             String key = keyPrefix + scanId;
-            String json = mapper.writeValueAsString(Map.of("normalized", normalized, "raw", rawJson));
+            
+            // rawJson can be null (e.g., when raw=false). Use "{}" so cache stays valid.
+            String safeRaw = (rawJson == null || rawJson.isBlank()) ? "{}" : rawJson;
+            
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("normalized", normalized);
+            payload.put("raw", safeRaw);
+            
+            String json = mapper.writeValueAsString(payload);
             redis.opsForValue().set(key, json, ttl);
         } catch (Exception e) {
             throw new CacheWriteException("Failed to write scan to Redis", e);
@@ -42,19 +50,22 @@ public class RedisScanCache implements ScanCache {
         try {
             String key = keyPrefix + scanId;
             String value = redis.opsForValue().get(key);
-            if (value == null) {
+            if (value == null || value.isBlank()) {
                 return Optional.empty();
             }
             
             JsonNode root = mapper.readTree(value);
-            JsonNode normMode = root.get("normalized");
-            JsonNode rawNode = root.get("raw");
-            if (normMode == null || rawNode == null || rawNode.isNull()) {
+            
+            JsonNode normNode = root.get("normalized");
+            if (normNode == null || normNode.isNull()) {
                 return Optional.empty();
             }
             
-            ScanResult normalized = mapper.treeToValue(normMode, ScanResult.class);
-            String raw = rawNode.asText();
+            ScanResult normalized = mapper.treeToValue(normNode, ScanResult.class);
+            
+            JsonNode rawNode = root.get("raw");
+            String raw = (rawNode == null || rawNode.isNull()) ? "{}" : rawNode.asText("{}");
+            
             return Optional.of(new CachedScan(normalized, raw));
         } catch (Exception e) {
             return Optional.empty();
