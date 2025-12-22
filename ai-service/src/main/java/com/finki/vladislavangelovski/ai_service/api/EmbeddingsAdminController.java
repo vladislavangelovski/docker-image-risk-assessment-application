@@ -59,7 +59,7 @@ public class EmbeddingsAdminController {
         int upserted;
         if (ids.isEmpty()) {
             // auto-batch mode
-            upserted = indexService.indexNextBatch(1000);
+            upserted = indexService.indexNextBatch(50);
             return new IndexResponse(0, upserted);
         } else {
             upserted = indexService.indexByIds(ids);
