@@ -2,13 +2,11 @@ package com.finki.vladislavangelovski.ai_service.qa;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanFinding;
 import com.finki.vladislavangelovski.ai_service.search.VectorSearchService;
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
-import com.finki.vladislavangelovski.common.dto.Citation;
-import com.finki.vladislavangelovski.common.dto.QaClaimRequest;
-import com.finki.vladislavangelovski.common.dto.QaClaimResponse;
-import com.finki.vladislavangelovski.common.dto.Verdict;
+import com.finki.vladislavangelovski.common.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -30,13 +28,16 @@ public class SemanticClaimService {
     private final VectorSearchService vectorSearchService;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final CveStoreClient cveStoreClient;
     
     public SemanticClaimService(VectorSearchService vectorSearchService,
                                 ChatClient chatClient,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                CveStoreClient cveStoreClient) {
         this.vectorSearchService = vectorSearchService;
         this.chatClient = chatClient;
         this.objectMapper = objectMapper;
+        this.cveStoreClient = cveStoreClient;
     }
     
     public QaClaimResponse judgeClaim(QaClaimRequest request,
@@ -392,7 +393,7 @@ public class SemanticClaimService {
     /** Strict structured output we expect from the LLM. */
     public record ModelOutput(String verdict, List<String> rationale, List<String> cveIds) {}
     
-    private static ScanFallback buildEvidenceFromScan(String claim, List<ScanFinding> findings, int topN) {
+    private ScanFallback buildEvidenceFromScan(String claim, List<ScanFinding> findings, int topN) {
         // Map CVE -> best finding (first seen)
         var byCve = new java.util.LinkedHashMap<String, ScanFinding>();
         for (ScanFinding f : findings) {
@@ -431,7 +432,7 @@ public class SemanticClaimService {
                     .forEach(selected::add);
         }
         
-        // Build citations
+        // Build citations + evidence
         var citations = new java.util.ArrayList<Citation>();
         var sb = new StringBuilder();
         
@@ -439,8 +440,25 @@ public class SemanticClaimService {
         for (ScanFinding f : selected) {
             String cve = f.cveId();
             
+            // ---- EPSS enrichment (best-effort, never fail the request) ----
+            EpssScoreDto epss = null;
+            try {
+                epss = cveStoreClient.getLatestEpss(cve).orElse(null);
+            } catch (Exception ignored) {
+                // ignore
+            }
+            
+            String epssSnippet = "";
+            if (epss != null && epss.getScore() != null) {
+                String scoreStr = epss.getScore().stripTrailingZeros().toPlainString();
+                String percStr = (epss.getPercentile() != null)
+                        ? epss.getPercentile().stripTrailingZeros().toPlainString()
+                        : "null";
+                epssSnippet = " | EPSS " + scoreStr + " (p=" + percStr + ")";
+            }
+            
             String url = pickBestUrl(f.references(), cve);
-            String title = "Scan finding: " + cve + " (" + safeStr(f.packageName()) + " " + safeStr(f.installedVersion()) + ")";
+            String title = "Scan finding: " + cve + " (" + safeStr(f.packageName()) + " " + safeStr(f.installedVersion()) + ")" + epssSnippet;
             
             citations.add(new Citation(cve, url, title));
             
@@ -452,6 +470,11 @@ public class SemanticClaimService {
             if (f.cvss() != null && f.cvss().score() != null) {
                 sb.append(" (CVSS ").append(String.format(java.util.Locale.ROOT, "%.1f", f.cvss().score())).append(")");
             }
+            
+            if (!epssSnippet.isBlank()) {
+                sb.append("\n   ").append(epssSnippet.substring(3)); // remove leading " | "
+            }
+            
             if (f.cvss() != null && f.cvss().vector() != null && !f.cvss().vector().isBlank()) {
                 sb.append("\n   Vector: ").append(f.cvss().vector());
             }
@@ -477,6 +500,7 @@ public class SemanticClaimService {
         
         return new ScanFallback(sb.toString().trim(), citations);
     }
+    
     
     private static double safeScore(ScanFinding f) {
         if (f == null || f.cvss() == null || f.cvss().score() == null) return 0.0;

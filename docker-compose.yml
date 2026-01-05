@@ -19,19 +19,33 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health/liveness"]
       interval: 15s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     env_file: .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
       INGEST_ENABLED: "true"
-      INGEST_STARTUP_ENABLED: "false"
+      INGEST_STARTUP_ENABLED: "true"
+      # Startup should be fast so the stack can come up:
+      # EPSS = run only EPSS at startup (recommended day-to-day)
+      # ALL  = run NVD + EPSS (use when you want a full lookback backfill)
+      INGEST_STARTUP_MODE: "EPSS"
+
+      INGEST_NVD_LOOKBACK_DAYS: 365
+      INGEST_NVD_MAX_WINDOW_DAYS: 120
       INGEST_BOOTSTRAP_ENABLED: ${INGEST_BOOTSTRAP_ENABLED:-false}
+
+      # Enable /actuator/health/liveness and /readiness
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: "true"
 
   redis:
     image: redis:7
@@ -88,7 +102,6 @@ services:
     volumes:
       - ollama-models:/root/.ollama
 
-
   ai-service:
     build:
       context: .
@@ -122,16 +135,19 @@ services:
       # === services.scan ===
       SERVICES_SCAN_BASE_URL: http://scan-service:8080
       SERVICES_SCAN_ASSESS_PATH: /api/v1/scans
+
       # === services.cvestore ===
       SERVICES_CVESTORE_BASE_URL: http://cve-store:8080
       SERVICES_CVESTORE_BY_ID_PATH: /api/v1/cves/{cveId}
       SERVICES_CVESTORE_LIST_PATH: /api/v1/cves
       SERVICES_CVESTORE_EPSS_PATH: /api/v1/cves/{cveId}/epss
+
       # === embeddings (Ollama) ===
       AI_EMBEDDINGS_BASE_URL: "http://ollama:11434"
       EMBEDDINGS_MODEL: nomic-embed-text
       EMBEDDINGS_TIMEOUT_MS: "5000"
       AI_EMBEDDINGS_DIM: "768"
+
       # === vector store datasource (pgvector DB) ===
       VECTORSTORE_DATASOURCE_URL: jdbc:postgresql://postgres:5432/riskdb
       VECTORSTORE_DATASOURCE_USERNAME: risk
@@ -139,7 +155,6 @@ services:
 
     ports:
       - "8083:8083"
-
 
   gateway-service:
     build:
@@ -165,7 +180,6 @@ services:
       GATEWAY_CORS_ALLOWED_ORIGINS: "*"
     ports:
       - "8080:8080"
-
 
 volumes:
   dbdata:

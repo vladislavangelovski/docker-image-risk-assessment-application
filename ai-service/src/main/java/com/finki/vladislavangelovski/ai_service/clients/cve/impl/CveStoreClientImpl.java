@@ -1,5 +1,6 @@
 package com.finki.vladislavangelovski.ai_service.clients.cve.impl;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.common.dto.CveEntryDto;
 import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
@@ -84,17 +85,21 @@ public class CveStoreClientImpl implements CveStoreClient {
     
     private Optional<EpssScoreDto> fetchLatestEpss(String cveId) {
         try {
-            var list = cveWebClient.get()
-                    .uri(uri -> uri.path(epssPath).queryParam("limit", 1).build(cveId))
+            // cve-store returns a JSON ARRAY: [ { ... } ]
+            EpssScoreDto[] arr = cveWebClient.get()
+                    .uri(epssPath + "?limit=1", cveId) // expands {cveId}
                     .retrieve()
-                    .bodyToMono(new org.springframework.core.ParameterizedTypeReference<List<EpssScoreDto>>() {})
+                    .bodyToMono(EpssScoreDto[].class)
                     .block();
             
-            return (list != null && !list.isEmpty())
-                    ? Optional.ofNullable(list.get(0))
-                    : Optional.empty();
+            if (arr != null && arr.length > 0 && arr[0] != null) {
+                return Optional.of(arr[0]);
+            }
+            return Optional.empty();
             
         } catch (WebClientResponseException.NotFound ex) {
+            return Optional.empty();
+        } catch (Exception ex) {
             return Optional.empty();
         }
     }
@@ -177,6 +182,12 @@ public class CveStoreClientImpl implements CveStoreClient {
         return result;
     }
     
+    @Override
+    public Optional<EpssScoreDto> getLatestEpss(String cveId) {
+        return fetchLatestEpss(cveId);
+    }
+    
+    
     private static String resolveListPath(String byIdPath, String configuredListPath) {
         if (configuredListPath != null && !configuredListPath.isBlank()) {
             return configuredListPath;
@@ -193,6 +204,8 @@ public class CveStoreClientImpl implements CveStoreClient {
         int placeholder = byIdPath.indexOf("/{");
         return (placeholder > 0) ? byIdPath.substring(0, placeholder) : byIdPath;
     }
+    
+    
     
     private static final class CvePageResponse {
         public List<CveEntryDto> content;
