@@ -53,6 +53,13 @@ spring:
           filters:
             - 'RewritePath=/api/v1/admin/embeddings(?<segment>/?.*), /api/admin/embeddings${segment}'
 
+        # ai-service (Semantic search + semantic QA)
+        - id: ai-service-semantic
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/v1/semantic/**
+          filters:
+            - 'RewritePath=/api/v1/semantic(?<segment>/?.*), /api/semantic${segment}'
 
 management:
   endpoints:
