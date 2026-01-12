@@ -77,6 +77,10 @@ management:
 gateway:
   cors:
     allowed-origins: "*"
+  security:
+    enabled: true
+    api-key: ${GATEWAY_API_KEY:}
+    header: X-API-Key
 
 services:
   scan-base-url: http://scan-service:8080
