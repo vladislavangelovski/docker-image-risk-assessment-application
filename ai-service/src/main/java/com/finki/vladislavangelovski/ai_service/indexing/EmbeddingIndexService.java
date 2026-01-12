@@ -4,12 +4,11 @@ import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.ai_service.embeddings.EmbeddingsClient;
 import com.finki.vladislavangelovski.ai_service.vector.VectorStoreRepository;
 import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
+import com.finki.vladislavangelovski.common.dto.EpssScoreDto;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -21,7 +20,7 @@ public class EmbeddingIndexService {
     /**
      * Dev-friendly cursor used only by the “index next batch” endpoint to move
      * past page 0 without the caller having to supply a page param.
-     *
+     * <p>
      * NOTE: This is intentionally in-memory (single instance in docker-compose).
      */
     private final AtomicInteger autoPageCursor = new AtomicInteger(0);
@@ -32,6 +31,10 @@ public class EmbeddingIndexService {
         this.cveClient = cveClient;
         this.embeddings = embeddings;
         this.vectorRepo = vectorRepo;
+    }
+    
+    private static Double toDouble(BigDecimal bd) {
+        return bd != null ? bd.doubleValue() : null;
     }
     
     /**
@@ -73,6 +76,27 @@ public class EmbeddingIndexService {
             return 0;
         }
         
+        List<CveForEmbedding> enriched = new ArrayList<>(docs.size());
+        for (CveForEmbedding d : docs) {
+            if (d == null || d.cveId() == null || d.cveId().isBlank()) {
+                continue;
+            }
+            try {
+                EpssScoreDto epss = cveClient.getLatestEpss(d.cveId()).orElse(null);
+                if (epss != null) {
+                    enriched.add(new CveForEmbedding(d.cveId(), d.title(), d.description(), d.cwe(), d.cvssBase(),
+                                                     d.cvssVector(), d.published(), d.lastModified(), d.references(),
+                                                     toDouble(epss.getScore()), toDouble(epss.getPercentile())));
+                }
+                else {
+                    enriched.add(d);
+                }
+            } catch (Exception ex) {
+                enriched.add(d);
+            }
+        }
+        docs = enriched;
+        
         var vectors = embeddings.embedAll(texts);
         if (vectors == null || vectors.size() != docs.size()) {
             throw new IllegalStateException(
@@ -85,12 +109,11 @@ public class EmbeddingIndexService {
     
     public int indexNextBatch(int batchSize) {
         int target = (batchSize <= 0) ? 50 : batchSize;
-        int pageSize = Math.min(Math.max(target, 1), 100); // cve-store caps size at 100
+        int pageSize = Math.min(Math.max(target, 1), 100);
         
         int page = autoPageCursor.get();
         List<CveForEmbedding> docs = new ArrayList<>(target);
         
-        // Safety: don't loop forever if data changes
         for (int guard = 0; guard < 10_000 && docs.size() < target; guard++) {
             var candidates = cveClient.findCandidatesForEmbeddingPage(page, pageSize);
             if (candidates == null || candidates.isEmpty()) {
@@ -112,8 +135,6 @@ public class EmbeddingIndexService {
                 }
             }
             
-            // If we stopped mid-page, keep the cursor on the same page so next run can pick up
-            // remaining (not-yet-indexed) CVEs from this page.
             if (!reachedTargetMidPage) {
                 page++;
             }
@@ -124,22 +145,38 @@ public class EmbeddingIndexService {
             return 0;
         }
         
-        List<String> texts = new ArrayList<>(docs.size());
+        List<String> ids = new ArrayList<>(docs.size());
         for (CveForEmbedding d : docs) {
+            ids.add(d.cveId());
+        }
+        
+        Map<String, CveForEmbedding> enrichedMap = cveClient.getByIds(ids);
+        List<CveForEmbedding> enrichedDocs = new ArrayList<>(docs.size());
+        for (String id : ids) {
+            CveForEmbedding e = (enrichedMap != null) ? enrichedMap.get(id) : null;
+            enrichedDocs.add(e != null ? e : docs.stream().filter(x -> id.equals(x.cveId())).findFirst().orElse(null));
+        }
+        enrichedDocs.removeIf(Objects::isNull);
+        
+        if (enrichedDocs.isEmpty()) {
+            return 0;
+        }
+        
+        List<String> texts = new ArrayList<>(enrichedDocs.size());
+        for (CveForEmbedding d : enrichedDocs) {
             String title = d.title() != null ? d.title() : d.cveId();
             String desc = d.description() != null ? d.description() : "";
             texts.add(title + "\n\n" + desc);
         }
         
         var vectors = embeddings.embedAll(texts);
-        if (vectors == null || vectors.size() != docs.size()) {
+        if (vectors == null || vectors.size() != enrichedDocs.size()) {
             throw new IllegalStateException(
-                    "Embedding count mismatch: " +
-                            (vectors == null ? 0 : vectors.size()) +
-                            " vs " + docs.size());
+                    "Embedding count mismatch: " + (vectors == null ? 0 : vectors.size()) + " vs " + enrichedDocs.size());
         }
         
-        vectorRepo.upsertAll(docs, vectors);
-        return docs.size();
+        vectorRepo.upsertAll(enrichedDocs, vectors);
+        return enrichedDocs.size();
     }
+    
 }

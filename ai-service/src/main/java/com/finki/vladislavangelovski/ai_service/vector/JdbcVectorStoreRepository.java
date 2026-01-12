@@ -248,8 +248,8 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
     
     @Override
     public boolean existsByCveId(String cveId) {
-        Boolean exists = jdbc.queryForObject("select exists (select 1 from cve_embeddings where cve_id = ?)",
-                                             Boolean.class, cveId);
+        String sql = "select exists (select 1 from %s where cve_id = ?)".formatted(table);
+        Boolean exists = jdbc.queryForObject(sql, Boolean.class, cveId);
         return Boolean.TRUE.equals(exists);
     }
 }
