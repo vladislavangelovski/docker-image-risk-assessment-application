@@ -1,5 +1,6 @@
 server:
   port: 8083
+  forward-headers-strategy: framework
 
 services:
   scan:
@@ -65,3 +66,7 @@ management:
     health:
       probes:
         enabled: true
+
+springdoc:
+  api-docs:
+    server-url: http://localhost:8080

@@ -8,6 +8,14 @@ spring:
     compatibility-verifier:
       enabled: false
     gateway:
+      server:
+        webflux:
+          trusted-proxies: ".*"
+          x-forwarded:
+            host-enabled: true
+            port-enabled: true
+            proto-enabled: true
+            prefix-enabled: true
       httpclient:
         connect-timeout: 5000
         response-timeout: 180s
@@ -37,6 +45,13 @@ spring:
           filters:
             - 'RewritePath=/api/v1/assess(?<segment>/?.*), /api/assess${segment}'
 
+        # ALIAS: ai-service (Assessment) without /v1 prefix
+        - id: ai-service-assess-alias
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/assess/**
+
+
         # ai-service (QA)
         - id: ai-service-qa
           uri: ${services.ai-base-url}
@@ -44,6 +59,13 @@ spring:
             - Path=/api/v1/qa/**
           filters:
             - 'RewritePath=/api/v1/qa(?<segment>/?.*), /api/qa${segment}'
+
+        # ALIAS: ai-service (QA) without /v1 prefix
+        - id: ai-service-qa-alias
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/qa/**
+
 
         # ai-service (Admin embeddings) — useful for reindex/search later
         - id: ai-service-admin-embeddings
@@ -53,6 +75,13 @@ spring:
           filters:
             - 'RewritePath=/api/v1/admin/embeddings(?<segment>/?.*), /api/admin/embeddings${segment}'
 
+        # ALIAS: ai-service (Admin embeddings) without /v1 prefix
+        - id: ai-service-admin-embeddings-alias
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/admin/embeddings/**
+
+
         # ai-service (Semantic search + semantic QA)
         - id: ai-service-semantic
           uri: ${services.ai-base-url}
@@ -60,6 +89,35 @@ spring:
             - Path=/api/v1/semantic/**
           filters:
             - 'RewritePath=/api/v1/semantic(?<segment>/?.*), /api/semantic${segment}'
+
+        # ALIAS: ai-service (Semantic) without /v1 prefix
+        - id: ai-service-semantic-alias
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/semantic/**
+
+
+        - id: api-docs-ai
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/v3/api-docs/ai
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: api-docs-scan
+          uri: ${services.scan-base-url}
+          predicates:
+            - Path=/v3/api-docs/scan
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: api-docs-cve-store
+          uri: ${services.cve-store-base-url}
+          predicates:
+            - Path=/v3/api-docs/cve-store
+          filters:
+            - SetPath=/v3/api-docs
+
 
 management:
   endpoints:
@@ -86,3 +144,14 @@ services:
   scan-base-url: http://scan-service:8080
   cve-store-base-url: http://cve-store:8080
   ai-base-url: http://ai-service:8083
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: ai-service
+        url: /v3/api-docs/ai
+      - name: scan-service
+        url: /v3/api-docs/scan
+      - name: cve-store-service
+        url: /v3/api-docs/cve-store
