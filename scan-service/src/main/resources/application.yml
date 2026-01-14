@@ -23,7 +23,7 @@ scan:
 
 debug:
   http:
-    log-requests: true
+    log-requests: false
 logging:
   level:
     org.springframework.web.filter.CommonsRequestLoggingFilter: INFO

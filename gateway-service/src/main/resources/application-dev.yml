@@ -1,0 +1,12 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          trusted-proxies: ".*"
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"

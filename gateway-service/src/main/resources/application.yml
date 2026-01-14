@@ -10,7 +10,7 @@ spring:
     gateway:
       server:
         webflux:
-          trusted-proxies: ".*"
+          trusted-proxies: "(127\\.0\\.0\\.1|::1)"
           x-forwarded:
             host-enabled: true
             port-enabled: true
@@ -24,7 +24,7 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "${gateway.cors.allowed-origins:*}"
+            allowedOrigins: []
             allowedMethods: "*"
             allowedHeaders: "*"
       routes:
@@ -130,10 +130,6 @@ management:
           degraded: 503
       probes:
         enabled: true
-
-gateway:
-  cors:
-    allowed-origins: "*"
 
 services:
   scan-base-url: http://scan-service:8080
