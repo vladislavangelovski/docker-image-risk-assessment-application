@@ -42,6 +42,10 @@ embeddings:
   model: nomic-embed-text
   timeout-ms: 10000
   expected-dim: 768
+  startup:
+    enabled: false
+    batch-size: 20
+    max-batches: 5
 
 vectorstore:
   table: cve_embeddings
