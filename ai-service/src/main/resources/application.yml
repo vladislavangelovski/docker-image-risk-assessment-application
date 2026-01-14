@@ -58,7 +58,7 @@ spring:
       base-url: http://ollama:11434
       chat:
         options:
-          model: llama3.2:3b-instruct-fp16
+          model: llama3.2:3b-instruct-q4_K_M
           temperature: 0.0
 
 management:
