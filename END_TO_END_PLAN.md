@@ -94,7 +94,7 @@ Legend:
 - [x] API client: typed wrapper (see `frontend/src/api/client.ts` and `frontend/src/api/types.ts`)
 - [x] Config: `VITE_API_BASE_URL`
 - [x] Core screens (MVP): Dashboard, Image Risk Assessment, QA, CVE Lookup
-- [ ] Optional: Scan Viewer, Admin Embeddings (admin mode)
+- [x] Optional: Scan Viewer, Admin Embeddings (admin mode)
 - [x] Dockerfile for frontend
 - [x] Add frontend to `docker-compose.yml`
 - [ ] Add frontend route in Kubernetes phase

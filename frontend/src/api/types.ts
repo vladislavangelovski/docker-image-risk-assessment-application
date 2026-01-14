@@ -107,3 +107,74 @@ export interface Page<T> {
   size: number;
   number: number;
 }
+
+export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+
+export interface CvssInfo {
+  source?: string;
+  score?: number;
+  vector?: string;
+}
+
+export interface ScanFinding {
+  cveId?: string;
+  packageName?: string;
+  installedVersion?: string;
+  fixedVersion?: string;
+  severity?: Severity;
+  severitySource?: string;
+  cvss?: CvssInfo;
+  references?: string[];
+  sourceTarget?: string;
+  packages?: string[];
+}
+
+export interface ScanSummary {
+  total: number;
+  severity: Record<Severity, number>;
+  fixAvailable: number;
+}
+
+export interface ScanResult {
+  scanId?: string;
+  image?: string;
+  digest?: string;
+  scannerVersion?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  summary?: ScanSummary;
+  findings?: ScanFinding[];
+}
+
+export type ScanJobState = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+
+export interface ScanJobStatus {
+  scanId?: string;
+  image?: string;
+  status?: ScanJobState;
+  message?: string;
+  createdAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface EmbeddingsIndexRequest {
+  cveIds?: string[];
+}
+
+export interface EmbeddingsIndexResponse {
+  requested: number;
+  upserted: number;
+}
+
+export interface EmbeddingsSearchHit {
+  cveId?: string;
+  similarity?: number;
+  title?: string;
+  epss?: number;
+  cvssBase?: number;
+}
+
+export interface EmbeddingsSearchResponse {
+  items?: EmbeddingsSearchHit[];
+}

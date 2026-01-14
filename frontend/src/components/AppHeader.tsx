@@ -15,7 +15,9 @@ const navItems = [
   { label: "Dashboard", to: "/", end: true },
   { label: "Assess", to: "/assess" },
   { label: "QA", to: "/qa" },
-  { label: "CVE Lookup", to: "/cves" }
+  { label: "CVE Lookup", to: "/cves" },
+  { label: "Scan Viewer", to: "/scans" },
+  { label: "Embeddings Admin", to: "/admin/embeddings" }
 ];
 
 export function AppHeader() {

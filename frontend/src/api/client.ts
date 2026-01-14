@@ -2,12 +2,17 @@ import type {
   AssessImageRequest,
   AssessImageResponse,
   CveEntry,
+  EmbeddingsIndexRequest,
+  EmbeddingsIndexResponse,
+  EmbeddingsSearchResponse,
   EpssScore,
   Page,
   QaClaimRequest,
   QaClaimResponse,
   QaQuestionRequest,
-  QaQuestionResponse
+  QaQuestionResponse,
+  ScanJobStatus,
+  ScanResult
 } from "./types";
 
 const DEFAULT_API_BASE = "http://localhost:8080";
@@ -54,5 +59,22 @@ export const api = {
     requestJson<Page<CveEntry>>(`/api/v1/cves?page=${page}&size=${size}`),
   cveById: (cveId: string) => requestJson<CveEntry>(`/api/v1/cves/${cveId}`),
   cveEpss: (cveId: string, limit: number) =>
-    requestJson<EpssScore[]>(`/api/v1/cves/${cveId}/epss?limit=${limit}`)
+    requestJson<EpssScore[]>(`/api/v1/cves/${cveId}/epss?limit=${limit}`),
+  scanById: (scanId: string, raw = false) =>
+    requestJson<ScanResult | unknown>(`/api/v1/scans/${scanId}?raw=${raw}`),
+  scanLatestByImage: (imageRef: string, raw = false) =>
+    requestJson<ScanResult | unknown>(
+      `/api/v1/scans?imageRef=${encodeURIComponent(imageRef)}&raw=${raw}`
+    ),
+  scanJobStatus: (scanId: string) =>
+    requestJson<ScanJobStatus>(`/api/v1/scans/jobs/${scanId}`),
+  embeddingsIndex: (payload: EmbeddingsIndexRequest) =>
+    requestJson<EmbeddingsIndexResponse>("/api/v1/admin/embeddings/index", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  embeddingsSearch: (query: string, k: number) =>
+    requestJson<EmbeddingsSearchResponse>(
+      `/api/v1/admin/embeddings/search?q=${encodeURIComponent(query)}&k=${k}`
+    )
 };

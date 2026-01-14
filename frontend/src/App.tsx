@@ -6,6 +6,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { ImageAssessment } from "./pages/ImageAssessment";
 import { QaCenter } from "./pages/QaCenter";
 import { CveLookup } from "./pages/CveLookup";
+import { ScanViewer } from "./pages/ScanViewer";
+import { AdminEmbeddings } from "./pages/AdminEmbeddings";
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
             <Route path="/assess" element={<ImageAssessment />} />
             <Route path="/qa" element={<QaCenter />} />
             <Route path="/cves" element={<CveLookup />} />
+            <Route path="/scans" element={<ScanViewer />} />
+            <Route path="/admin/embeddings" element={<AdminEmbeddings />} />
           </Routes>
         </Container>
       </Box>
