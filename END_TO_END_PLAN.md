@@ -60,7 +60,7 @@ Legend:
 
 ## Phase 6 – gateway-service
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
-- [x] Implement API-key security (dev-friendly; bypasses if key is empty) (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/AuthenticationPlaceholderFilter.java`)
+- [ ] Authentication/authorization at the gateway (currently disabled)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [ ] Correlation IDs propagated end-to-end
 - [ ] Global error handling and consistent error payloads across services (gateway mostly passes errors through today)
@@ -68,21 +68,21 @@ Legend:
 - [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
 
 ## Phase 7 – Frontend Web Application (UI)
-- [ ] Choose stack: React + TypeScript + Vite
-- [ ] UI library: MUI
-- [ ] API client: generated from OpenAPI or typed wrapper
-- [ ] Config: `VITE_API_BASE_URL`, API-key handling (session input / sessionStorage)
-- [ ] Core screens (MVP): Dashboard, Image Risk Assessment, QA, CVE Lookup
+- [x] Choose stack: React + TypeScript + Vite
+- [x] UI library: MUI
+- [x] API client: generated from OpenAPI or typed wrapper
+- [x] Config: `VITE_API_BASE_URL`
+- [x] Core screens (MVP): Dashboard, Image Risk Assessment, QA, CVE Lookup
 - [ ] Optional: Scan Viewer, Admin Embeddings (admin mode)
-- [ ] Dockerfile for frontend
-- [ ] Add frontend to `docker-compose.yml`
+- [x] Dockerfile for frontend
+- [x] Add frontend to `docker-compose.yml`
 - [ ] Add frontend route in Kubernetes phase
 
 ## Phase 8 – Local Dev & Orchestration
 - [x] Dockerfiles for each backend module (see `*/Dockerfile`)
-- [ ] Dockerfile for frontend (not present yet)
+- [x] Dockerfile for frontend (see `frontend/Dockerfile`)
 - [x] `docker-compose.yml` includes gateway, scan, cve-store, ai, Redis, PostgreSQL (see `docker-compose.yml`)
-- [ ] `docker-compose.yml` includes frontend (not present yet)
+- [x] `docker-compose.yml` includes frontend (see `docker-compose.yml`)
 - [ ] Validate end-to-end locally via UI + gateway (UI not present yet)
 - [ ] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
 

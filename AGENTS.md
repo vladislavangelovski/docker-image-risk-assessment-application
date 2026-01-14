@@ -22,7 +22,7 @@ If an instruction conflicts with existing code or build constraints, **follow th
 
 A **Docker image risk assessment** application composed of Spring Boot services:
 
-- **gateway-service**: single public entrypoint; routing, auth (API key), error normalization
+- **gateway-service**: single public entrypoint; routing, auth (currently disabled), error normalization
 - **scan-service**: runs an image scanner (Trivy) and produces raw + normalized results
 - **cve-store-service**: ingests and serves CVE + EPSS data (DB-backed)
 - **ai-service**: computes risk summaries and provides RAG-based Q&A (claim/question) with evidence
@@ -183,7 +183,6 @@ If you change embeddings schema/indexing:
 
 If a `frontend/` app exists or is introduced:
 - It must call the gateway only.
-- Keep API key handling explicit and demo-safe (session storage preferred over local storage).
 - Include a “Raw JSON” view in UI for auditability.
 - Minimal pages:
   - Dashboard

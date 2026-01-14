@@ -48,7 +48,7 @@
 
 ## Phase 6 – gateway-service
 - Spring Cloud Gateway routing to downstream services
-- Implement API-key security, request logging, correlation IDs
+- Implement authentication/authorization (currently disabled), request logging, correlation IDs
 - Global error handling and consistent error payloads
 - Aggregate/normalize responses where needed
 - Swagger/OpenAPI exposure (single entrypoint)
@@ -60,7 +60,7 @@
 - Choose stack: React + TypeScript + Vite
 - UI library: MUI (recommended for consistency and speed)
 - API client: generated from OpenAPI or a typed fetch wrapper
-- Config: `VITE_API_BASE_URL`, API-key handling (session input / sessionStorage)
+- Config: `VITE_API_BASE_URL`
 
 ### 7.2 Core screens (MVP)
 - Dashboard: quick assess + quick QA + recent history

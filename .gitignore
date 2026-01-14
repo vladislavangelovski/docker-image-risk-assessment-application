@@ -1,6 +1,9 @@
 /target/
 **/target/
 .env
+node_modules/
+frontend/dist/
+*.tsbuildinfo
 
 .idea/
 *.iml

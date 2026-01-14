@@ -38,11 +38,10 @@ Copy `.env-example` to `.env` in the repo root and fill it in:
 POSTGRES_USER=risk
 POSTGRES_PASSWORD=dev
 POSTGRES_DB=riskdb
-GATEWAY_API_KEY=dev-key
+VITE_API_BASE_URL=http://localhost:8080
 ```
 Notes:
-- The **gateway** enforces an API key if `GATEWAY_API_KEY` is set; send it as `X-API-Key: <value>`.
-- `GATEWAY_API_KEY` can be empty in dev (auth is effectively disabled in that case), but that is not recommended for demos.
+- `VITE_API_BASE_URL` is used by the frontend build to target the gateway.
 
 Optional (AI embeddings startup indexing):
 ```
@@ -57,6 +56,7 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
 2. **Access Services**
     - Gateway API: `http://localhost:8080`
     - Swagger UI (aggregated): `http://localhost:8080/swagger-ui.html`
+    - Frontend UI: `http://localhost:5173`
 
 ### Startup order & health
 - Postgres and Redis must be healthy before the app services start consuming them.
