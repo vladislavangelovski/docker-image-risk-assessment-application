@@ -179,9 +179,7 @@ public class ScanController {
             "provided image reference.")
     public ResponseEntity<?> getLatestByImage(@RequestParam("imageRef") String imageRef,
                                               @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
-        if (imageRef == null || imageRef.isBlank()) {
-            throw new IllegalArgumentException("imageRef is required");
-        }
+        validateImageRef(imageRef, "imageRef");
 
         var loadedOpt = persistence.findLatestByImage(imageRef, raw);
         if (loadedOpt.isEmpty()) {
@@ -208,9 +206,10 @@ public class ScanController {
      * Minimal, temporary validation (we'll replace with a proper validator/handler)
      */
     private static void validate(ScanRequest req) {
-        if (req == null || req.image() == null || req.image().isBlank()) {
+        if (req == null) {
             throw new IllegalArgumentException("image is required");
         }
+        validateImageRef(req.image(), "image");
         if (req.registryCreds() != null) {
             if (req.registryCreds().username() == null || req.registryCreds().username().isBlank()) {
                 throw new IllegalArgumentException("registryCreds.username must be non-empty when provided");
@@ -226,6 +225,20 @@ public class ScanController {
             }
             if (req.options().scanners() != null && !req.options().scanners().equals(java.util.List.of("vuln"))) {
                 throw new IllegalArgumentException("options.scanners must be [\"vuln\"] for MVP");
+            }
+        }
+    }
+
+    private static void validateImageRef(String imageRef, String fieldName) {
+        if (imageRef == null || imageRef.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        if (imageRef.startsWith("-")) {
+            throw new IllegalArgumentException(fieldName + " must not start with '-'");
+        }
+        for (int i = 0; i < imageRef.length(); i++) {
+            if (Character.isWhitespace(imageRef.charAt(i))) {
+                throw new IllegalArgumentException(fieldName + " must not contain whitespace");
             }
         }
     }

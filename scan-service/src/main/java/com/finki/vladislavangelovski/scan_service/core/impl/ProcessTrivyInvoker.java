@@ -49,14 +49,15 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             env.put("TRIVY_PASSWORD", registryCreds.password());
         }
         
+        ExecutorService executorService = Executors.newFixedThreadPool(2, r -> {
+            Thread thread = new Thread(r, "trivy-io");
+            thread.setDaemon(true);
+            return thread;
+        });
+        long deadlineNanos = System.nanoTime() + request.timeout().toNanos();
+        
         try {
             final Process process = pb.start();
-            ExecutorService executorService = Executors.newFixedThreadPool(2, r -> {
-                Thread thread = new Thread(r, "trivy-io");
-                thread.setDaemon(true);
-                return thread;
-            });
-            
             Future<byte[]> outF = executorService.submit(
                     () -> readAllBounded(process.getInputStream(), MAX_STDOUT_BYTES));
             Future<byte[]> errF = executorService.submit(
@@ -65,17 +66,14 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             boolean finished = process.waitFor(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                
-                try {
-                    outF.cancel(true);
-                    errF.cancel(true);
-                } catch (Exception e) {
-                    throw new ScannerException("Trivy scan timed out after " + request.timeout().toSeconds() + "s");
-                }
+                outF.cancel(true);
+                errF.cancel(true);
+                throw new ScannerException("Trivy scan timed out after " + request.timeout().toSeconds() + "s");
             }
             
-            byte[] stdout = getFutureNow(outF, "stdout");
-            byte[] stderr = getFutureNow(errF, "stderr");
+            long remainingMillis = remainingMillis(deadlineNanos);
+            byte[] stdout = getFuture(outF, "stdout", remainingMillis);
+            byte[] stderr = getFuture(errF, "stderr", remainingMillis);
             int exit = process.exitValue();
             
             String rawJson = new String(stdout, StandardCharsets.UTF_8);
@@ -96,6 +94,8 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ScannerException("Trivy process interrupted", e);
+        } finally {
+            executorService.shutdownNow();
         }
     }
     
@@ -151,10 +151,19 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
         }
     }
     
-    private static byte[] getFutureNow(Future<byte[]> f,
-                                       String which) throws ScannerException {
+    private static byte[] getFuture(Future<byte[]> f,
+                                    String which,
+                                    long timeoutMillis) throws ScannerException {
         try {
-            return f.get(1, TimeUnit.SECONDS);
+            if (timeoutMillis <= 0) {
+                if (!f.isDone()) {
+                    throw new TimeoutException("Timed out collecting " + which + " from Trivy");
+                }
+                return f.get(0, TimeUnit.MILLISECONDS);
+            }
+            return f.get(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (CancellationException e) {
+            throw new ScannerException("Collection of " + which + " from Trivy was canceled", e);
         } catch (TimeoutException e) {
             f.cancel(true);
             throw new ScannerException("Timed out collecting " + which + " from Trivy", e);
@@ -168,6 +177,11 @@ public class ProcessTrivyInvoker implements TrivyInvoker {
             Thread.currentThread().interrupt();
             throw new ScannerException("Interrupted collecting " + which + " from Trivy", e);
         }
+    }
+
+    private static long remainingMillis(long deadlineNanos) {
+        long remainingNanos = deadlineNanos - System.nanoTime();
+        return Math.max(0L, TimeUnit.NANOSECONDS.toMillis(remainingNanos));
     }
     
     private String detectTrivyVersion() {
