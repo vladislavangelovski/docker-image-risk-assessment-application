@@ -19,7 +19,7 @@ Legend:
 - [ ] Metrics export (Prometheus) + dashboards/alerts (ingestion lag, scan duration, LLM latency/error rates, DB/Redis)
 - [ ] Distributed tracing (OpenTelemetry) with sampling and service-to-service context propagation
 - [ ] Health/readiness probes for **all** services (compose and Kubernetes), including `ai-service` dependency checks (DB + Ollama)
-- [ ] Secrets/config strategy for production (no committed `.env`; Kubernetes Secrets/ConfigMaps; rotation + least privilege)
+- [ ] Secrets/config strategy for production (no committed `.env` — currently committed; Kubernetes Secrets/ConfigMaps; rotation + least privilege)
 - [ ] Backup/restore runbook for PostgreSQL (including pgvector) + retention policy for raw scan outputs
 - [ ] CI security gates: dependency SCA, container scanning, SBOM generation (and optional image signing)
 - [ ] Kubernetes baseline: manifests/Helm, resource requests/limits, network policies, ingress/TLS, and environment profiles
@@ -50,8 +50,8 @@ Legend:
 
 ## Phase 2 – “common” Module
 - [x] Shared DTOs/models exist (see `common/src/main/java/com/finki/vladislavangelovski/common/dto`)
-- [ ] Common utilities: HTTP clients, exception wrappers, shared error model, validation helpers (not centralized in `common` yet)
-- [ ] Common Jackson configuration and version constants (not centralized in `common` yet)
+- [x] Common utilities: HTTP clients, exception wrappers, shared error model, validation helpers (centralized in `common`)
+- [x] Common Jackson configuration and version constants (centralized in `common`)
 - [x] DependencyManagement for consistent library versions (see `pom.xml`)
 
 ## Phase 3 – cve-store-service
@@ -156,4 +156,4 @@ Legend:
 - [x] Ensure CVE/EPSS data exists (startup ingest enabled; EPSS mode auto-seeds NVD when DB is empty)
 - [x] Assess an image via gateway: `POST /api/v1/assess/image`
 - [x] Ask a QA question via gateway: `POST /api/v1/qa/question` (image-based QA auto-indexes scan CVEs)
-- [ ] (Optional) Pre-index embeddings via gateway: `POST /api/v1/admin/embeddings/index` (improves semantic-only queries)
+- [x] (Optional) Pre-index embeddings via gateway: `POST /api/v1/admin/embeddings/index` (improves semantic-only queries)
