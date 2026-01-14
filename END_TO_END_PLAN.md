@@ -15,7 +15,8 @@ Legend:
 - [x] Secure-by-default gateway edge (CORS deny-all + trusted proxies allowlist) with `dev` profile override (see `gateway-service/src/main/resources/application.yml` and `gateway-service/src/main/resources/application-dev.yml`)
 - [ ] Authentication + authorization at the gateway (and protect admin endpoints)
 - [ ] Rate limiting + request size limits at the gateway (per-route; include scan and QA endpoints)
-- [ ] Correlation/request ID propagation end-to-end (gateway → services) and structured JSON logging with redaction rules
+- [x] Correlation/request ID propagation end-to-end (gateway → services)
+- [ ] Structured JSON logging with redaction rules
 - [ ] Metrics export (Prometheus) + dashboards/alerts (ingestion lag, scan duration, LLM latency/error rates, DB/Redis)
 - [ ] Distributed tracing (OpenTelemetry) with sampling and service-to-service context propagation
 - [ ] Health/readiness probes for **all** services (compose and Kubernetes), including `ai-service` dependency checks (DB + Ollama)

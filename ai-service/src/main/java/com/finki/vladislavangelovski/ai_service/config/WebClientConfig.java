@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
@@ -20,6 +21,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 @Configuration
 public class WebClientConfig {
@@ -84,6 +86,7 @@ public class WebClientConfig {
                 .exchangeStrategies(ExchangeStrategies.builder()
                         .codecs(c -> c.defaultCodecs().maxInMemorySize(maxInMemoryBytes))
                         .build())
+                .filter(requestIdFilter())
                 .filter(retryFilter());
     }
 
@@ -101,6 +104,19 @@ public class WebClientConfig {
         return (request, next) -> next.exchange(request)
                 .flatMap(this::propagate5xxToError)
                 .retryWhen(retrySpec);
+    }
+
+    private ExchangeFilterFunction requestIdFilter() {
+        return (request, next) -> {
+            String requestId = MDC.get("requestId");
+            if (requestId == null || requestId.isBlank()) {
+                return next.exchange(request);
+            }
+            ClientRequest mutated = ClientRequest.from(request)
+                    .header("X-Request-Id", requestId)
+                    .build();
+            return next.exchange(mutated);
+        };
     }
 
     private boolean isRetryable(Throwable throwable) {

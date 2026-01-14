@@ -23,10 +23,13 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        LOGGER.info("Incoming request: {} {}", request.getMethod(), request.getURI());
+        String requestId = request.getHeaders().getFirst(RequestIdFilter.HEADER);
+        LOGGER.info("Incoming request: {} {} requestId={}", request.getMethod(), request.getURI(), requestId);
         return chain
                 .filter(exchange)
                 .then(Mono.fromRunnable(() -> LOGGER.info(
-                        "Request completed with status {}", exchange.getResponse().getStatusCode())));
+                        "Request completed with status {} requestId={}",
+                        exchange.getResponse().getStatusCode(),
+                        requestId)));
     }
 }
