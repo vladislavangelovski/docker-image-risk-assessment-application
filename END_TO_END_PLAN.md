@@ -1,35 +1,138 @@
-# End-to-end readiness plan (scan-service → cve-store-service → ai-service)
+# End-to-end plan (roadmap-mapped checklist)
 
-## What works today (from code)
-- **Scan submission**: `ScanController` exposes `/api/v1/scans` POST to run Trivy/Syft via `DefaultScanOrchestrator`, persist via `JdbcScanPersistence`, and cache via Redis (`ScanCache`).【F:scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java†L24-L115】
-- **AI assessment**: `AssessmentServiceImpl` calls `ScanClient` for a fresh scan, then enriches each CVE via `CveStoreClient`, scores results, and assembles citations with vector search fallbacks.【F:ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/service/impl/AssessmentServiceImpl.java†L23-L120】
-- **Service URLs in compose**: ai-service points at scan-service and cve-store-service over the compose network; Postgres/Redis/Ollama are already wired as dependencies.【F:docker-compose.yml†L83-L125】
+This file mirrors `ROADMAP.md` and tracks implementation status based on what exists in this repository today (code +
+config). Keep it updated as phases are completed.
 
-## Gaps preventing a reliable end-to-end slice
-1. **Gateway is absent** – All traffic must hit services directly; without routes and shared filters, there is no single entry point or consistent auth/observability.
-2. **Start-order fragility** – ai-service depends on cve-store and scan-service with `service_started`, so early AI calls can race before those apps are ready; scan-service lacks a healthcheck for compose to wait on.【F:docker-compose.yml†L66-L95】
-3. **Scan client fallback calls a non-existent endpoint** – The AI client falls back to GET `/api/v1/scans?imageRef=...`, but scan-service only defines GET by scanId, so the fallback always fails instead of retrying or surfacing the original POST error.【F:ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/clients/scan/ScanClientImpl.java†L24-L41】【F:scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java†L117-L167】
-4. **CVE batch retrieval path is wrong for embedding** – `CveStoreClientImpl` derives the list path by replacing `/{id}`, but the configured pattern is `/{cveId}`, so the replacement never happens and the list call hits `/api/v1/cves/{cveId}` (404).【F:ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/clients/cve/impl/CveStoreClientImpl.java†L132-L167】
-5. **No smoke test or script for the full flow** – There is no scripted path to run a scan, fetch CVEs/EPSS, and request an AI assessment to validate wiring after changes.
+Legend:
+- `- [x]` done in repo
+- `- [ ]` missing / needs work (or only partially done)
 
-## Priority course of action
-1. **Put the gateway in front**
-   - Add Spring Cloud Gateway routes for `/api/v1/scans/**`, `/api/v1/cves/**`, and `/api/v1/ai/**`, including request logging, CORS, timeouts, and (optionally) auth.
-   - Provide a simple `/health` fan-out or aggregated status to surface downstream readiness.
+## Phase 0 – Define & Align Requirements & Scope
+- [ ] Revisit functional requirements: scan images, ingest CVE/EPSS, RAG QA (beyond `ROADMAP.md`/`README.md`)
+- [ ] Revisit non-functional requirements: performance, scalability, security, reliability, cost (beyond `ROADMAP.md`)
+- [ ] Draft minimal API spec (gateway-first) as a stable external contract
+  - [x] claim/question in → summary + evidence out (endpoints exist: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
+  - [x] assess image in → risk summary + findings out (endpoint exists: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/AssessmentController.java`)
+- [x] Tech-stack confirmation: Java 21 + Spring Boot 3.x (see `pom.xml`)
+- [x] Maven multi-module layout (modules exist: `common`, `cve-store-service`, `scan-service`, `ai-service`, `gateway-service`) (see `pom.xml`)
+- [x] Redis + PostgreSQL wired (see `docker-compose.yml`)
+- [x] Docker Compose (local) (see `docker-compose.yml`)
+- [ ] Kubernetes (production target) tracked in repo (no manifests/helm yet)
+- [x] Spring Boot Actuator enabled (health endpoints + compose healthchecks) (see `docker-compose.yml`)
+- [ ] Micrometer metrics export configured (no Prometheus registry/config yet; metrics endpoints not exposed)
+- [x] GitHub Actions CI/CD present (see `.github/workflows/ci.yml`)
 
-2. **Stabilize startup and retries**
-   - Add healthchecks for scan-service (e.g., `/actuator/health` with DB + Redis indicators) and cve-store; switch compose `depends_on` to `service_healthy` and increase retry/backoff on AI WebClients.
-   - Ensure ai-service waits for Postgres migrations; expose Flyway readiness in health probes.
+## Phase 1 – Repository & Project Skeleton
+- [x] Git repository exists (see `.git/`)
+- [ ] Branch strategy documented (no `CONTRIBUTING.md` / documented workflow yet)
+- [x] Parent POM with shared properties (Java 21) and modules (see `pom.xml`)
+- [x] GitHub Actions workflow runs Maven build/verify on PRs (see `.github/workflows/ci.yml`)
 
-3. **Fix client/API mismatches**
-   - Align the AI scan client with scan-service: remove the GET fallback or add a dedicated GET `?imageRef=` endpoint; propagate scan IDs so AI can reuse cached results when provided.
-   - Correct `CveStoreClientImpl` list-path derivation (or expose a first-class batch/list endpoint) so embedding/index jobs can pull CVEs without 404s.
+## Phase 2 – “common” Module
+- [x] Shared DTOs/models exist (see `common/src/main/java/com/finki/vladislavangelovski/common/dto`)
+- [ ] Common utilities: HTTP clients, exception wrappers, shared error model, validation helpers (not centralized in `common` yet)
+- [ ] Common Jackson configuration and version constants (not centralized in `common` yet)
+- [x] DependencyManagement for consistent library versions (see `pom.xml`)
 
-4. **Add an end-to-end smoke test**
-   - Script a flow that: posts a scan for a small public image, waits/polls for completion (or uses sync response), then calls the AI assessment endpoint and asserts presence of CVE details and citations.
-   - Wire the script into CI and a local `make smoke` target to catch wiring regressions.
+## Phase 3 – cve-store-service
+- [x] Ingestion pipeline for NVD CVEs and EPSS CSV (scheduled pulls) (see `cve-store-service/src/main/java/com/finki/vladislavangelovski/cve_store_service/batch/IngestionJob.java`)
+- [x] Persistence via JPA entities + Flyway migrations (see `cve-store-service/src/main/resources/db/migration`)
+- [x] Indexes tuned for CVE lookups and enrichment queries (see `cve-store-service/src/main/resources/db/migration`)
+- [x] REST endpoints for CVE/EPSS lookups (see `cve-store-service/src/main/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryController.java`)
+- [ ] Optional admin endpoints for ingestion control (no explicit “trigger ingestion now” API yet)
 
-5. **Close the observability loop**
-   - Standardize JSON logging and tracing across scan-service and ai-service clients to capture cross-service latencies; add metrics for failed client calls and ingestion lag.
+## Phase 4 – scan-service
+- [x] Integrate Trivy and parse results into a normalized scan DTO (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/core/impl/JacksonTrivyParser.java`)
+- [x] Business logic attaches CVE IDs + affected package info in findings (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/dto/Finding.java`)
+- [x] REST API: submit image → normalized results; retrieve by `scanId` with optional raw output (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java`)
+- [x] Preserve raw scan output (persisted; `raw=true` retrieval) (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java`)
+- [x] Redis caching (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/core/impl/RedisScanCache.java`)
+- [ ] Job coordination via Redis (no async job/status model yet)
 
-These steps focus specifically on making the scan → CVE → AI chain reliable with the current code while leaving room for future auth or async/event-driven enhancements.
+## Phase 5 – ai-service (RAG)
+- [x] Embedding generation + vector store (pgvector) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/indexing/EmbeddingIndexService.java`)
+- [x] Ingest CVE descriptions + EPSS into embeddings (indexing exists; requires running the index endpoint) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
+- [x] QA pipeline: retrieval → prompt → LLM → answer + evidence (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/qa`)
+- [x] Endpoints exposed: `/qa/claim` and `/qa/question` (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
+- [x] Admin endpoints for indexing + semantic search (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
+- [ ] Deterministic prompt templates stored in resources (prompting is currently code-driven)
+- [ ] “Evidence always returned” guarantee (responses can be sparse if embeddings are not indexed)
+
+## Phase 6 – gateway-service
+- [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
+- [x] Implement API-key security (dev-friendly; bypasses if key is empty) (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/AuthenticationPlaceholderFilter.java`)
+- [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
+- [ ] Correlation IDs propagated end-to-end
+- [ ] Global error handling and consistent error payloads across services (gateway mostly passes errors through today)
+- [ ] Aggregate/normalize responses where needed (not implemented)
+- [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
+
+## Phase 7 – Frontend Web Application (UI)
+- [ ] Choose stack: React + TypeScript + Vite
+- [ ] UI library: MUI
+- [ ] API client: generated from OpenAPI or typed wrapper
+- [ ] Config: `VITE_API_BASE_URL`, API-key handling (session input / sessionStorage)
+- [ ] Core screens (MVP): Dashboard, Image Risk Assessment, QA, CVE Lookup
+- [ ] Optional: Scan Viewer, Admin Embeddings (admin mode)
+- [ ] Dockerfile for frontend
+- [ ] Add frontend to `docker-compose.yml`
+- [ ] Add frontend route in Kubernetes phase
+
+## Phase 8 – Local Dev & Orchestration
+- [x] Dockerfiles for each backend module (see `*/Dockerfile`)
+- [ ] Dockerfile for frontend (not present yet)
+- [x] `docker-compose.yml` includes gateway, scan, cve-store, ai, Redis, PostgreSQL (see `docker-compose.yml`)
+- [ ] `docker-compose.yml` includes frontend (not present yet)
+- [ ] Validate end-to-end locally via UI + gateway (UI not present yet)
+- [ ] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
+
+## Phase 9 – CI/CD & Quality
+- [x] GitHub Actions: build → test (`mvn ... verify`) (see `.github/workflows/ci.yml`)
+- [x] GitHub Actions: Docker build (and push on main/tags) (see `.github/workflows/ci.yml`)
+- [ ] Formatting/lint gates (Spotless/Checkstyle) enforced in CI (Spotless is present but not wired as a gate)
+- [ ] OWASP dependency checks (or other SCA tooling)
+- [x] JUnit 5 tests exist
+- [x] Testcontainers integration tests exist (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerIT.java`)
+- [ ] Service contract tests (gateway ↔ services)
+- [ ] Frontend CI (typecheck + build + UI smoke tests) (frontend not present yet)
+- [ ] Compose-based smoke test for the full flow (no script/job yet)
+
+## Phase 10 – Kubernetes Deployment
+- [ ] Manifests or Helm charts (Deployments, Services, ConfigMaps, Secrets) (none in repo yet)
+- [ ] Ingress + TLS (Let’s Encrypt) (none in repo yet)
+- [ ] Environment-based config (dev/stage/prod) (none in repo yet)
+- [ ] CI deploy step (optional) (none in repo yet)
+
+## Phase 11 – Observability & Monitoring
+- [x] Actuator health endpoints exposed across services (see `docker-compose.yml`)
+- [ ] Metrics endpoints exposed and scraped (Prometheus/Grafana)
+- [ ] Tracing/correlation IDs end-to-end (gateway → services)
+- [ ] Centralized logging (ELK/EFK or alternative)
+
+## Phase 12 – Load Testing & Security Validation
+- [ ] Performance tests (k6/Gatling) for assess + QA + lookup
+- [ ] Security scans: dependency + container + basic DAST (ZAP)
+- [ ] Mini pen-test rounds (auth bypass, rate limit, input validation)
+- [ ] Document results and mitigations
+
+## Phase 13 – Documentation & Thesis Writing
+- [x] README exists (see `README.md`)
+- [x] Swagger/OpenAPI exists (services + gateway aggregation)
+- [ ] Example requests / runnable API collection (partial: `scan-service/scans.http`)
+- [ ] Comprehensive README with architecture diagrams and quickstart
+- [ ] “How it works” docs (scan → enrich → score → QA evidence flow)
+- [ ] Thesis chapters tracked (not present in this repo yet)
+
+## Phase 14 – Public Deployment & Handoff
+- [ ] Deploy to a cloud/on-prem Kubernetes cluster
+- [ ] Configure DNS & TLS, finalize performance baselines
+- [ ] Handoff guide + maintenance notes (runbooks, upgrades, key rotation, backups)
+
+---
+
+## Critical-path demo checklist (gateway-only)
+- [x] Start stack with `docker compose up --build` (see `docker-compose.yml`)
+- [ ] Ensure CVE/EPSS data exists (enable startup ingest or run scheduled ingest via config)
+- [ ] Index embeddings (call AI admin endpoint via gateway: `POST /api/v1/admin/embeddings/index`)
+- [ ] Assess an image via gateway: `POST /api/v1/assess/image`
+- [ ] Ask a QA question via gateway: `POST /api/v1/qa/question`
