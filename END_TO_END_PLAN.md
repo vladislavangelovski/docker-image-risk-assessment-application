@@ -132,7 +132,7 @@ Legend:
 
 ## Critical-path demo checklist (gateway-only)
 - [x] Start stack with `docker compose up --build` (see `docker-compose.yml`)
-- [ ] Ensure CVE/EPSS data exists (enable startup ingest or run scheduled ingest via config)
+- [x] Ensure CVE/EPSS data exists (startup ingest enabled; EPSS mode auto-seeds NVD when DB is empty)
 - [ ] Index embeddings (call AI admin endpoint via gateway: `POST /api/v1/admin/embeddings/index`)
 - [ ] Assess an image via gateway: `POST /api/v1/assess/image`
 - [ ] Ask a QA question via gateway: `POST /api/v1/qa/question`
