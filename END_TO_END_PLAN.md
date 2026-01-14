@@ -51,12 +51,12 @@ Legend:
 
 ## Phase 5 – ai-service (RAG)
 - [x] Embedding generation + vector store (pgvector) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/indexing/EmbeddingIndexService.java`)
-- [x] Ingest CVE descriptions + EPSS into embeddings (indexing exists; requires running the index endpoint) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
+- [x] Ingest CVE descriptions + EPSS into embeddings (indexing exists; can be triggered via admin endpoint, and image-based QA/claim auto-indexes scan CVEs on demand) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
 - [x] QA pipeline: retrieval → prompt → LLM → answer + evidence (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/qa`)
 - [x] Endpoints exposed: `/qa/claim` and `/qa/question` (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
 - [x] Admin endpoints for indexing + semantic search (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
 - [ ] Deterministic prompt templates stored in resources (prompting is currently code-driven)
-- [ ] “Evidence always returned” guarantee (responses can be sparse if embeddings are not indexed)
+- [ ] “Evidence always returned” guarantee (semantic-only responses can be sparse if embeddings are not indexed)
 
 ## Phase 6 – gateway-service
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
@@ -133,6 +133,6 @@ Legend:
 ## Critical-path demo checklist (gateway-only)
 - [x] Start stack with `docker compose up --build` (see `docker-compose.yml`)
 - [x] Ensure CVE/EPSS data exists (startup ingest enabled; EPSS mode auto-seeds NVD when DB is empty)
-- [ ] Index embeddings (call AI admin endpoint via gateway: `POST /api/v1/admin/embeddings/index`)
-- [ ] Assess an image via gateway: `POST /api/v1/assess/image`
-- [ ] Ask a QA question via gateway: `POST /api/v1/qa/question`
+- [x] Assess an image via gateway: `POST /api/v1/assess/image`
+- [x] Ask a QA question via gateway: `POST /api/v1/qa/question` (image-based QA auto-indexes scan CVEs)
+- [ ] (Optional) Pre-index embeddings via gateway: `POST /api/v1/admin/embeddings/index` (improves semantic-only queries)

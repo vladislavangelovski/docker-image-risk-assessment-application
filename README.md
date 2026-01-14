@@ -9,7 +9,7 @@ This project contains multiple microservices that together provide vulnerability
 
 ## Architecture Overview
 - Services communicate over an internal Docker network
-- **gateway-service** routes external REST calls to the appropriate backends
+- **gateway-service** routes external REST calls to the appropriate backends and is the public entrypoint
 - Each service exposes a HTTP port and a health endpoint
 
 ## Database Schema
@@ -33,16 +33,17 @@ This project contains multiple microservices that together provide vulnerability
 - Maven 3.9+
 
 ## Environment Variables
-Create a `.env` in the repo root with
+Copy `.env-example` to `.env` in the repo root and fill it in:
 ```
 POSTGRES_USER=risk
 POSTGRES_PASSWORD=dev
 POSTGRES_DB=riskdb
-INGEST_ENABLED=true
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+GATEWAY_API_KEY=dev-key
 ```
+Notes:
+- The **gateway** enforces an API key if `GATEWAY_API_KEY` is set; send it as `X-API-Key: <value>`.
+- `GATEWAY_API_KEY` can be empty in dev (auth is effectively disabled in that case), but that is not recommended for demos.
+
 Optional (AI embeddings startup indexing):
 ```
 EMBEDDINGS_STARTUP_ENABLED=true
@@ -54,8 +55,8 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
 1. **Start containers**
 `docker compose up --build` or `docker compose up --build -d` to make it detached
 2. **Access Services**
-    - CVE Store API: `http://localhost:8080/api/v1/cves`
-    - Swagger UI: `http://localhost:8080/swagger-ui.html`
+    - Gateway API: `http://localhost:8080`
+    - Swagger UI (aggregated): `http://localhost:8080/swagger-ui.html`
 
 ### Startup order & health
 - Postgres and Redis must be healthy before the app services start consuming them.
@@ -63,10 +64,20 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
 - `ai-service` waits for both `cve-store` and `scan-service` to report healthy before starting, reducing startup-race failures.
 - The CVE bootstrap runner in `cve-store` waits for the database to answer before running the initial ingest so first-time startup is reliable.
 
+### End-to-end (gateway-only)
+- Image scan: `POST http://localhost:8080/api/v1/scans`
+- Image assessment: `POST http://localhost:8080/api/v1/assess/image`
+- QA question: `POST http://localhost:8080/api/v1/qa/question`
+- QA claim: `POST http://localhost:8080/api/v1/qa/claim`
+
+QA note:
+- When you pass `imageRef`, the AI service will **auto-index missing CVE embeddings** for the CVEs found in that image scan (first request may take longer).
+- For semantic-only queries without an `imageRef`, you can pre-index using `POST /api/v1/admin/embeddings/index`.
+
 ## Running Tests
 ```
 # Run all unit + integration tests
-docker compose run --rm cve-store-service mvn test
+./mvnw clean verify
 ```
 
 ## Handling merge conflicts when updating a PR
