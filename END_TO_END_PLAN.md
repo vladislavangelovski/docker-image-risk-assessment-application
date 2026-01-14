@@ -85,7 +85,7 @@ Legend:
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [ ] Correlation IDs propagated end-to-end
 - [x] Global error handling and consistent error payloads across services (gateway normalizes errors to common payload)
-- [ ] Aggregate/normalize responses where needed (not implemented)
+- [x] Aggregate/normalize responses where needed (gateway CVE aggregate endpoint)
 - [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
 
 ## Phase 7 – Frontend Web Application (UI)
