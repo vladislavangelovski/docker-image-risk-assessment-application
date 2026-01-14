@@ -106,6 +106,43 @@ public class EmbeddingIndexService {
         vectorRepo.upsertAll(docs, vectors);
         return docs.size();
     }
+
+    /**
+     * Best-effort helper to index only missing CVE embeddings.
+     */
+    public int indexMissingByIds(Collection<String> cveIds) {
+        if (cveIds == null || cveIds.isEmpty()) {
+            return 0;
+        }
+
+        Set<String> wanted = new LinkedHashSet<>();
+        for (String id : cveIds) {
+            if (id != null && !id.isBlank()) {
+                wanted.add(id);
+            }
+        }
+        if (wanted.isEmpty()) {
+            return 0;
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String id : wanted) {
+            try {
+                if (!vectorRepo.existsByCveId(id)) {
+                    missing.add(id);
+                }
+            } catch (Exception ex) {
+                // If vector lookup fails, fall back to indexing so QA still has a chance to work.
+                missing.add(id);
+            }
+        }
+
+        if (missing.isEmpty()) {
+            return 0;
+        }
+
+        return indexByIds(missing);
+    }
     
     public int indexNextBatch(int batchSize) {
         int target = (batchSize <= 0) ? 50 : batchSize;
