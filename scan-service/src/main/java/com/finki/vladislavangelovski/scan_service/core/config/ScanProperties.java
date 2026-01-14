@@ -8,6 +8,7 @@ public class ScanProperties {
     private Defaults defaults = new Defaults();
     private RedisCache cache = new RedisCache();
     private Trivy trivy = new Trivy();
+    private Job job = new Job();
     
     public Defaults getDefaults() {
         return defaults;
@@ -19,6 +20,10 @@ public class ScanProperties {
     
     public Trivy getTrivy() {
         return trivy;
+    }
+
+    public Job getJob() {
+        return job;
     }
     
     public static class Defaults {
@@ -99,6 +104,21 @@ public class ScanProperties {
         
         public void setSkipVersionCheck(boolean skipVersionCheck) {
             this.skipVersionCheck = skipVersionCheck;
+        }
+    }
+
+    public static class Job {
+        /**
+         * default 86400 (24h)
+         */
+        private int ttlSeconds = 86400;
+
+        public int getTtlSeconds() {
+            return ttlSeconds;
+        }
+
+        public void setTtlSeconds(int ttlSeconds) {
+            this.ttlSeconds = ttlSeconds;
         }
     }
 }

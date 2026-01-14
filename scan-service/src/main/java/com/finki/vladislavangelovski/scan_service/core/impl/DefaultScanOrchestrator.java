@@ -34,6 +34,12 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
     @Override
     public ScanResult scan(ScanRequest request)
             throws ScannerException, ParserException, ScanCache.CacheWriteException {
+        return scan(request, UUID.randomUUID());
+    }
+
+    @Override
+    public ScanResult scan(ScanRequest request,
+                           UUID scanId) throws ScannerException, ParserException, ScanCache.CacheWriteException {
         boolean ignoreUnfixed = request.options() == null || request.options()
                 .ignoreUnfixed() == null ? properties.getDefaults().isIgnoreUnfixed() : request.options()
                 .ignoreUnfixed();
@@ -44,7 +50,6 @@ public class DefaultScanOrchestrator implements ScanOrchestrator {
         var invocation = new TrivyInvocationRequest(request.image(), ignoreUnfixed, Duration.ofSeconds(timeoutSec),
                                                     List.of("vuln"), request.registryCreds());
         
-        UUID scanId = UUID.randomUUID();
         Instant started = Instant.now();
         
         TrivyOutput output = invoker.run(invocation);

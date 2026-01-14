@@ -10,5 +10,6 @@ public enum ErrorCode {
     TRIVY_SCAN_ERROR,
     TRIVY_TIMEOUT,
     CACHE_WRITE_ERROR,
+    JOB_STORE_ERROR,
     INTERNAL
 }

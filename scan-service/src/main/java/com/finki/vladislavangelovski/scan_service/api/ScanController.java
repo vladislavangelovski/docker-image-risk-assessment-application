@@ -1,10 +1,13 @@
 package com.finki.vladislavangelovski.scan_service.api;
 
+import com.finki.vladislavangelovski.scan_service.api.dto.ScanJobStatus;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanRequest;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
 import com.finki.vladislavangelovski.scan_service.api.error.NotFoundException;
 import com.finki.vladislavangelovski.scan_service.core.ParserException;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
+import com.finki.vladislavangelovski.scan_service.core.ScanJobCoordinator;
+import com.finki.vladislavangelovski.scan_service.core.ScanJobStore;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.ScannerException;
 import com.finki.vladislavangelovski.scan_service.core.config.ScanProperties;
@@ -20,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -33,16 +37,19 @@ public class ScanController {
     private final ScanCache cache;
     private final ScanPersistence persistence;
     private final ScanProperties properties;
+    private final ScanJobCoordinator scanJobCoordinator;
     private static final Logger log = LoggerFactory.getLogger(ScanController.class);
     
     public ScanController(ScanOrchestrator orchestrator,
                           ScanCache cache,
                           ScanPersistence persistence,
-                          ScanProperties properties) {
+                          ScanProperties properties,
+                          ScanJobCoordinator scanJobCoordinator) {
         this.orchestrator = orchestrator;
         this.cache = cache;
         this.persistence = persistence;
         this.properties = properties;
+        this.scanJobCoordinator = scanJobCoordinator;
     }
     
     /**
@@ -106,6 +113,33 @@ public class ScanController {
         validate(request);
         ScanResult result = orchestrator.scan(request);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/async")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Start an async scan", description = "Schedules a scan job and returns a job status.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "Job scheduled", content = @Content(mediaType =
+                                                                                                          "application/json", schema = @Schema(implementation = ScanJobStatus.class), examples = @ExampleObject(name = "queued", value = """
+                    {
+                      "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
+                      "image": "nginx:1.25",
+                      "status": "QUEUED",
+                      "message": null,
+                      "createdAt": "2025-10-12T09:04:35Z",
+                      "startedAt": null,
+                      "finishedAt": null
+                    }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Job store failure", content = @Content(mediaType =
+                                                                                                             "application/json", examples = @ExampleObject(value = """
+                    {"errorCode":"JOB_STORE_ERROR","message":"Failed to persist scan job status","details":{}}
+                    """)))
+    })
+    public ScanJobStatus createAsync(@RequestBody ScanRequest request)
+            throws ScanJobStore.StoreWriteException {
+        validate(request);
+        return scanJobCoordinator.submit(request);
     }
     
     /**
@@ -172,6 +206,21 @@ public class ScanController {
             return ResponseEntity.ok(loaded.normalized());
         }
         throw new NotFoundException("Scan not found or expired: " + scanId);
+    }
+
+    @GetMapping("/jobs/{scanId}")
+    @Operation(summary = "Get async scan job status")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Job status", content = @Content(mediaType =
+                                                                                                       "application/json", schema = @Schema(implementation = ScanJobStatus.class))),
+            @ApiResponse(responseCode = "404", description = "Job not found", content = @Content(mediaType =
+                                                                                                          "application/json", examples = @ExampleObject(value = """
+                    {"errorCode":"NOT_FOUND","message":"Scan job not found: <uuid>","details":{}}
+                    """)))
+    })
+    public ScanJobStatus getJob(@PathVariable("scanId") UUID scanId) {
+        return scanJobCoordinator.get(scanId)
+                .orElseThrow(() -> new NotFoundException("Scan job not found: " + scanId));
     }
 
     @GetMapping(params = "imageRef")

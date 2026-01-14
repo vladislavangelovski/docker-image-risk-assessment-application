@@ -2,6 +2,7 @@ package com.finki.vladislavangelovski.scan_service.api.error;
 
 import com.finki.vladislavangelovski.scan_service.core.ParserException;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
+import com.finki.vladislavangelovski.scan_service.core.ScanJobStore;
 import com.finki.vladislavangelovski.scan_service.core.ScannerException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ScanCache.CacheWriteException.class)
     public ResponseEntity<ErrorResponse> handleCache(ScanCache.CacheWriteException ex) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.CACHE_WRITE_ERROR, "Failed to cache scan result",
+                     Map.of());
+    }
+
+    @ExceptionHandler(ScanJobStore.StoreWriteException.class)
+    public ResponseEntity<ErrorResponse> handleJobStore(ScanJobStore.StoreWriteException ex) {
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.JOB_STORE_ERROR, "Failed to persist scan job status",
                      Map.of());
     }
     

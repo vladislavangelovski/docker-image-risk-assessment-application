@@ -67,7 +67,7 @@ Legend:
 - [x] REST API: submit image → normalized results; retrieve by `scanId` with optional raw output (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java`)
 - [x] Preserve raw scan output (persisted; `raw=true` retrieval) (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/api/ScanController.java`)
 - [x] Redis caching (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/core/impl/RedisScanCache.java`)
-- [ ] Job coordination via Redis (no async job/status model yet)
+- [x] Job coordination via Redis (async job/status model with Redis-backed store)
 
 ## Phase 5 – ai-service (RAG)
 - [x] Embedding generation + vector store (pgvector) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/indexing/EmbeddingIndexService.java`)

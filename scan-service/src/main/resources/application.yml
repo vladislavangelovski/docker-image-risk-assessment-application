@@ -20,6 +20,8 @@ spring:
 scan:
   cache:
     ttl-seconds: 86400
+  job:
+    ttl-seconds: 86400
 
 debug:
   http:

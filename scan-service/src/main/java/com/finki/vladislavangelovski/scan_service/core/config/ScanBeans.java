@@ -2,6 +2,8 @@ package com.finki.vladislavangelovski.scan_service.core.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
+import com.finki.vladislavangelovski.scan_service.core.ScanJobCoordinator;
+import com.finki.vladislavangelovski.scan_service.core.ScanJobStore;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.TrivyInvoker;
 import com.finki.vladislavangelovski.scan_service.core.TrivyParser;
@@ -9,6 +11,7 @@ import com.finki.vladislavangelovski.scan_service.core.impl.*;
 import com.finki.vladislavangelovski.scan_service.core.persistence.ScanPersistence;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.Optional;
@@ -37,6 +40,15 @@ public class ScanBeans {
             return new InMemoryScanCache();
         }
     }
+
+    @Bean
+    public ScanJobStore scanJobStore(Optional<StringRedisTemplate> redisTemplateOpt,
+                                     ObjectMapper mapper) {
+        if (redisTemplateOpt.isPresent()) {
+            return new RedisScanJobStore(redisTemplateOpt.get(), mapper);
+        }
+        return new InMemoryScanJobStore();
+    }
     
     @Bean
     public ScanOrchestrator scanOrchestrator(TrivyInvoker trivyInvoker,
@@ -45,5 +57,13 @@ public class ScanBeans {
                                              ScanProperties scanProperties,
                                              ScanPersistence scanPersistence) {
         return new DefaultScanOrchestrator(trivyInvoker, trivyParser, scanCache, scanProperties, scanPersistence);
+    }
+
+    @Bean
+    public ScanJobCoordinator scanJobCoordinator(ScanOrchestrator scanOrchestrator,
+                                                 ScanJobStore scanJobStore,
+                                                 TaskExecutor taskExecutor,
+                                                 ScanProperties scanProperties) {
+        return new DefaultScanJobCoordinator(scanOrchestrator, scanJobStore, taskExecutor, scanProperties);
     }
 }
