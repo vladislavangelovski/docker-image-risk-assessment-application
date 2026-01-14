@@ -1,8 +1,10 @@
 package com.finki.vladislavangelovski.ai_service.qa;
 
+import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.ai_service.search.VectorSearchService;
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
 import com.finki.vladislavangelovski.common.dto.Citation;
+import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
 import com.finki.vladislavangelovski.common.dto.QaQuestionRequest;
 import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -18,14 +22,21 @@ public class SemanticQuestionService {
     private static final int RETRIEVAL_K = 20;
     private static final int EVIDENCE_TOP_N = 6;
     private static final int DESCRIPTION_MAX_LEN = 600;
+    private static final Pattern CVE_ID_PATTERN = Pattern.compile("CVE-\\d{4}-\\d{4,}");
     
     private final VectorSearchService vectorSearchService;
     private final ChatClient chatClient;
+    private final CveStoreClient cveStoreClient;
+    private final PromptTemplates promptTemplates;
     
     public SemanticQuestionService(VectorSearchService vectorSearchService,
-                                   ChatClient chatClient) {
+                                   ChatClient chatClient,
+                                   CveStoreClient cveStoreClient,
+                                   PromptTemplates promptTemplates) {
         this.vectorSearchService = vectorSearchService;
         this.chatClient = chatClient;
+        this.cveStoreClient = cveStoreClient;
+        this.promptTemplates = promptTemplates;
     }
     
     private static List<SearchHit> topN(List<SearchHit> hits,
@@ -96,6 +107,66 @@ public class SemanticQuestionService {
         }
         return result;
     }
+
+    private List<SearchHit> buildEvidenceFromCveStore(String text,
+                                                      Set<String> allowedCves,
+                                                      int topN) {
+        Set<String> candidates = new LinkedHashSet<>();
+        if (allowedCves != null && !allowedCves.isEmpty()) {
+            candidates.addAll(allowedCves);
+        } else {
+            candidates.addAll(extractMentionedCves(text));
+        }
+
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> ids = candidates.stream().limit(topN).toList();
+        Map<String, CveForEmbedding> byId;
+        try {
+            byId = cveStoreClient.getByIds(ids);
+        } catch (Exception ex) {
+            log.debug("CVE store fallback failed for IDs {}", ids, ex);
+            return List.of();
+        }
+
+        if (byId == null || byId.isEmpty()) {
+            return List.of();
+        }
+
+        List<SearchHit> hits = new ArrayList<>();
+        for (String id : ids) {
+            CveForEmbedding cve = byId.get(id);
+            if (cve != null) {
+                hits.add(toSearchHit(cve));
+            }
+        }
+        return hits;
+    }
+
+    private static SearchHit toSearchHit(CveForEmbedding cve) {
+        return new SearchHit(
+                cve.cveId(),
+                cve.title(),
+                cve.description(),
+                cve.epss(),
+                cve.cvssBase(),
+                null
+        );
+    }
+
+    private static Set<String> extractMentionedCves(String text) {
+        Set<String> out = new LinkedHashSet<>();
+        if (text == null) {
+            return out;
+        }
+        Matcher m = CVE_ID_PATTERN.matcher(text.toUpperCase(Locale.ROOT));
+        while (m.find()) {
+            out.add(m.group());
+        }
+        return out;
+    }
     
     private static String truncate(String text,
                                    int maxLen) {
@@ -133,35 +204,14 @@ public class SemanticQuestionService {
         }
         
         List<SearchHit> evidence = topN(hits, EVIDENCE_TOP_N);
+        if (evidence.isEmpty()) {
+            evidence = buildEvidenceFromCveStore(question, allowedCves, EVIDENCE_TOP_N);
+        }
         
         String evidenceText = buildEvidenceText(evidence, packagesByCve);
         List<Citation> citations = buildCitations(evidence);
         
-        String systemPrompt = """
-                You are a container security assistant for DevOps teams.
-                
-                You MUST obey these rules:
-                
-                1. You ONLY know about CVEs, packages and scores that are explicitly provided
-                   in the <cve_context> and <image_context> sections.
-                   - If the user mentions a CVE that is NOT present there, you MUST say
-                     that you have no evidence for that CVE in the current context.
-                2. Do NOT invent:
-                   - CVE details (affected product, package, version, exploit vector, etc.)
-                   - Package names or versions
-                   - Vendors or products (e.g. Docker, Ivanti, Kubernetes) unless they
-                     explicitly appear in the provided context.
-                3. When you talk about risk, base it ONLY on:
-                   - The descriptions, CVSS scores, EPSS scores, and other fields present
-                     in the context.
-                4. If the evidence is weak or unrelated to the question, say that you do NOT
-                   have enough information and clearly mark the answer as uncertain.
-                
-                Your job is to:
-                - Explain the risk of the vulnerabilities for container images and DevOps teams.
-                - Use short, concrete bullet points (no fluff).
-                - Always reference the relevant CVE IDs in your explanation.
-                """;
+        String systemPrompt = promptTemplates.questionSystem();
         
         String allowedCvesStr = (allowedCves == null || allowedCves.isEmpty())
                 ? "None. No restrictions from image scan; using semantic search only."
@@ -181,33 +231,8 @@ public class SemanticQuestionService {
             packagesByCveStr = pkgSb.toString().trim();
         }
         
-        String userPrompt = """
-                User question:
-                %s
-
-                <cve_context>
-                %s
-                </cve_context>
-
-                <image_context>
-                Allowed CVEs from the image (if any):
-                %s
-
-                Packages per CVE (if any):
-                %s
-                </image_context>
-
-                Now:
-                1. Answer the question using ONLY the information from <cve_context> and <image_context>.
-                2. If the question asks about a CVE not present in this context, explicitly say
-                   that you have no evidence about that CVE in the current context.
-                3. Explain the risk in 2–4 bullet points, focused on container / DevOps impact.
-                """.formatted(
-                question,
-                evidenceText,
-                allowedCvesStr,
-                packagesByCveStr
-        );
+        String userPrompt = String.format(Locale.ROOT, promptTemplates.questionUser(),
+                                          question, evidenceText, allowedCvesStr, packagesByCveStr);
         
         String answer = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
         

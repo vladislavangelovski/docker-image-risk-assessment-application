@@ -75,8 +75,8 @@ Legend:
 - [x] QA pipeline: retrieval → prompt → LLM → answer + evidence (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/qa`)
 - [x] Endpoints exposed: `/qa/claim` and `/qa/question` (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
 - [x] Admin endpoints for indexing + semantic search (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
-- [ ] Deterministic prompt templates stored in resources (prompting is currently code-driven)
-- [ ] “Evidence always returned” guarantee (semantic-only responses can be sparse if embeddings are not indexed)
+- [x] Deterministic prompt templates stored in resources
+- [x] “Evidence always returned” guarantee via CVE-store fallback when embeddings are sparse
 
 ## Phase 6 – gateway-service
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)

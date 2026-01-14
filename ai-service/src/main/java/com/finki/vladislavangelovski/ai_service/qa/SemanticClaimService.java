@@ -29,15 +29,18 @@ public class SemanticClaimService {
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private final CveStoreClient cveStoreClient;
+    private final PromptTemplates promptTemplates;
     
     public SemanticClaimService(VectorSearchService vectorSearchService,
                                 ChatClient chatClient,
                                 ObjectMapper objectMapper,
-                                CveStoreClient cveStoreClient) {
+                                CveStoreClient cveStoreClient,
+                                PromptTemplates promptTemplates) {
         this.vectorSearchService = vectorSearchService;
         this.chatClient = chatClient;
         this.objectMapper = objectMapper;
         this.cveStoreClient = cveStoreClient;
+        this.promptTemplates = promptTemplates;
     }
     
     public QaClaimResponse judgeClaim(QaClaimRequest request,
@@ -64,11 +67,11 @@ public class SemanticClaimService {
         
         List<SearchHit> evidence = topN(hits, evidenceN);
         List<Citation> citations = buildCitations(evidence);
-        
-        String evidenceText;
+        String evidenceText = "";
         
         // 3) Fallback: if semantic evidence is empty, build evidence from scan findings
         if (evidence.isEmpty()) {
+            boolean usedFallback = false;
             if (scanFindings != null && !scanFindings.isEmpty()) {
                 ScanFallback fallback = buildEvidenceFromScan(claim, scanFindings, evidenceN);
                 
@@ -77,14 +80,20 @@ public class SemanticClaimService {
                         && !fallback.evidenceText().isBlank()) {
                     citations = fallback.citations();
                     evidenceText = fallback.evidenceText();
-                } else {
-                    return new QaClaimResponse(
-                            Verdict.INSUFFICIENT,
-                            "Insufficient evidence: no relevant CVE context was retrieved and scan findings provided no usable CVE evidence.",
-                            List.of()
-                    );
+                    usedFallback = true;
                 }
-            } else {
+            }
+
+            if (!usedFallback) {
+                List<SearchHit> storeHits = buildEvidenceFromCveStore(claim, allowedCves, evidenceN);
+                if (!storeHits.isEmpty()) {
+                    citations = buildCitations(storeHits);
+                    evidenceText = buildEvidenceText(storeHits, packagesByCve);
+                    usedFallback = true;
+                }
+            }
+
+            if (!usedFallback) {
                 return new QaClaimResponse(
                         Verdict.INSUFFICIENT,
                         "Insufficient evidence: no relevant CVE context was retrieved for this claim.",
@@ -178,21 +187,7 @@ public class SemanticClaimService {
                                   String evidenceText,
                                   Set<String> allowedCves,
                                   Map<String, List<String>> packagesByCve) {
-        String systemPrompt = """
-                You are a container security assistant.
-
-                You MUST obey these rules:
-                1) Use ONLY the information provided in <cve_context> and <image_context>.
-                2) Do NOT invent CVEs, packages, versions, vendors, or exploit details.
-                3) Your output MUST be STRICT JSON only. No markdown. No extra text.
-
-                Output JSON schema (exact keys):
-                {
-                  "verdict": "SUPPORTS" | "REFUTES" | "INSUFFICIENT",
-                  "rationale": ["bullet 1", "bullet 2"],
-                  "cveIds": ["CVE-YYYY-NNNN", ...]
-                }
-                """;
+        String systemPrompt = promptTemplates.claimSystem();
         
         String detectedCvesStr = (allowedCves == null || allowedCves.isEmpty())
                 ? "None. No scan-based CVE list provided; using semantic search only."
@@ -210,35 +205,8 @@ public class SemanticClaimService {
             packagesByCveStr = pkgSb.toString().trim();
         }
         
-        String userPrompt = """
-        Claim to evaluate:
-        %s
-
-        <cve_context>
-        %s
-        </cve_context>
-
-        <image_context>
-        Detected CVEs from the image scan (if any):
-        %s
-
-        Packages per CVE (if any):
-        %s
-        </image_context>
-
-        Decision rules:
-        - SUPPORTS: the provided evidence directly supports the claim.
-        - REFUTES: the provided evidence directly contradicts the claim.
-        - INSUFFICIENT: evidence is missing, weak, or not clearly connected.
-
-        Critical constraints:
-        - If the image scan evidence includes a CVE, then the image IS affected by that CVE.
-        - Do NOT infer "high-likelihood exploitable" from CVSS alone.
-          Exploitability likelihood requires EPSS/exploit evidence. If missing, prefer INSUFFICIENT.
-        - Cite ONLY CVE IDs that appear in the provided context.
-        - Provide 2–4 short rationale bullets.
-        - Output STRICT JSON only.
-        """.formatted(claim, evidenceText, detectedCvesStr, packagesByCveStr);
+        String userPrompt = String.format(Locale.ROOT, promptTemplates.claimUser(),
+                                          claim, evidenceText, detectedCvesStr, packagesByCveStr);
         
         String raw = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
         if (raw == null || raw.isBlank()) {
@@ -330,6 +298,54 @@ public class SemanticClaimService {
             result.add(new Citation(cveId, url, title));
         }
         return result;
+    }
+
+    private List<SearchHit> buildEvidenceFromCveStore(String text,
+                                                      Set<String> allowedCves,
+                                                      int topN) {
+        Set<String> candidates = new LinkedHashSet<>();
+        if (allowedCves != null && !allowedCves.isEmpty()) {
+            candidates.addAll(allowedCves);
+        } else {
+            candidates.addAll(extractMentionedCves(text));
+        }
+
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> ids = candidates.stream().limit(topN).toList();
+        Map<String, CveForEmbedding> byId;
+        try {
+            byId = cveStoreClient.getByIds(ids);
+        } catch (Exception ex) {
+            log.debug("CVE store fallback failed for IDs {}", ids, ex);
+            return List.of();
+        }
+
+        if (byId == null || byId.isEmpty()) {
+            return List.of();
+        }
+
+        List<SearchHit> hits = new ArrayList<>();
+        for (String id : ids) {
+            CveForEmbedding cve = byId.get(id);
+            if (cve != null) {
+                hits.add(toSearchHit(cve));
+            }
+        }
+        return hits;
+    }
+
+    private static SearchHit toSearchHit(CveForEmbedding cve) {
+        return new SearchHit(
+                cve.cveId(),
+                cve.title(),
+                cve.description(),
+                cve.epss(),
+                cve.cvssBase(),
+                null
+        );
     }
     
     private static String truncate(String text, int maxLen) {

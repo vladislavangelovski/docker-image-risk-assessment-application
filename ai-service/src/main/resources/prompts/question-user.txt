@@ -1,0 +1,20 @@
+User question:
+%s
+
+<cve_context>
+%s
+</cve_context>
+
+<image_context>
+Allowed CVEs from the image (if any):
+%s
+
+Packages per CVE (if any):
+%s
+</image_context>
+
+Now:
+1. Answer the question using ONLY the information from <cve_context> and <image_context>.
+2. If the question asks about a CVE not present in this context, explicitly say
+   that you have no evidence about that CVE in the current context.
+3. Explain the risk in 2-4 bullet points, focused on container / DevOps impact.
