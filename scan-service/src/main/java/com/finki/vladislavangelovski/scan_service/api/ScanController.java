@@ -19,50 +19,61 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.Duration;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/scans")
 @Tag(name = "Image Scans", description = "Submit and retrieve container image vulnerability scans")
 public class ScanController {
-    private final ScanOrchestrator orchestrator;
-    private final ScanCache cache;
-    private final ScanPersistence persistence;
-    private final ScanProperties properties;
-    private final ScanJobCoordinator scanJobCoordinator;
-    private static final Logger log = LoggerFactory.getLogger(ScanController.class);
-    
-    public ScanController(ScanOrchestrator orchestrator,
-                          ScanCache cache,
-                          ScanPersistence persistence,
-                          ScanProperties properties,
-                          ScanJobCoordinator scanJobCoordinator) {
-        this.orchestrator = orchestrator;
-        this.cache = cache;
-        this.persistence = persistence;
-        this.properties = properties;
-        this.scanJobCoordinator = scanJobCoordinator;
-    }
-    
-    /**
-     * POST /api/v1/scans  (sync MVP)
-     * - Validates request (image required; options within allowed ranges)
-     * - Delegates to orchestrator (to be wired next step)
-     * - Returns normalized ScanResult (no raw here)
-     */
-    @PostMapping
-    @Operation(summary = "Scan an image", description = "Invokes Trivy and returns a normalized vulnerability report.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Scan completed", content = @Content(mediaType =
-                                                                                                          "application/json", schema = @Schema(implementation = ScanResult.class), examples = @ExampleObject(name = "ok", value = """
+  private final ScanOrchestrator orchestrator;
+  private final ScanCache cache;
+  private final ScanPersistence persistence;
+  private final ScanProperties properties;
+  private final ScanJobCoordinator scanJobCoordinator;
+  private static final Logger log = LoggerFactory.getLogger(ScanController.class);
+
+  public ScanController(
+      ScanOrchestrator orchestrator,
+      ScanCache cache,
+      ScanPersistence persistence,
+      ScanProperties properties,
+      ScanJobCoordinator scanJobCoordinator) {
+    this.orchestrator = orchestrator;
+    this.cache = cache;
+    this.persistence = persistence;
+    this.properties = properties;
+    this.scanJobCoordinator = scanJobCoordinator;
+  }
+
+  /**
+   * POST /api/v1/scans (sync MVP) - Validates request (image required; options within allowed
+   * ranges) - Delegates to orchestrator (to be wired next step) - Returns normalized ScanResult (no
+   * raw here)
+   */
+  @PostMapping
+  @Operation(
+      summary = "Scan an image",
+      description = "Invokes Trivy and returns a normalized vulnerability report.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Scan completed",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ScanResult.class),
+                examples =
+                    @ExampleObject(
+                        name = "ok",
+                        value =
+                            """
                     {
                       "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
                       "image": "nginx:1.25",
@@ -90,37 +101,74 @@ public class ScanController {
                       ]
                     }
                     """))),
-            @ApiResponse(responseCode = "400", description = "Bad request", content = @Content(mediaType =
-                                                                                                       "application/json", examples = @ExampleObject(value = """
+    @ApiResponse(
+        responseCode = "400",
+        description = "Bad request",
+        content =
+            @Content(
+                mediaType = "application/json",
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
                     {"errorCode":"BAD_REQUEST_IMAGE","message":"image is required","details":{}}
                     """))),
-            @ApiResponse(responseCode = "500", description = "Unexpected error", content = @Content(mediaType =
-                                                                                                            "application/json", examples = @ExampleObject(value = """
+    @ApiResponse(
+        responseCode = "500",
+        description = "Unexpected error",
+        content =
+            @Content(
+                mediaType = "application/json",
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
                     {"errorCode":"INTERNAL","message":"Unexpected server error","details":{}}
                     """)))
-    })
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, description = "Image to scan and optional " +
-            "registry credentials.", content = @Content(mediaType = "application/json", schema =
-    @Schema(implementation = ScanRequest.class), examples = @ExampleObject(name = "request", value = """
+  })
+  @io.swagger.v3.oas.annotations.parameters.RequestBody(
+      required = true,
+      description = "Image to scan and optional " + "registry credentials.",
+      content =
+          @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ScanRequest.class),
+              examples =
+                  @ExampleObject(
+                      name = "request",
+                      value =
+                          """
             {
               "image": "nginx:1.25",
               "registryCreds": { "username": "user", "password": "pass" },
               "options": { "timeoutSec": 120, "ignoreUnfixed": true, "scanners": ["vuln"] }
             }
             """)))
-    public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request)
-            throws ScannerException, ParserException, ScanCache.CacheWriteException {
-        validate(request);
-        ScanResult result = orchestrator.scan(request);
-        return ResponseEntity.ok(result);
-    }
+  public ResponseEntity<ScanResult> create(@RequestBody ScanRequest request)
+      throws ScannerException, ParserException, ScanCache.CacheWriteException {
+    validate(request);
+    ScanResult result = orchestrator.scan(request);
+    return ResponseEntity.ok(result);
+  }
 
-    @PostMapping("/async")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    @Operation(summary = "Start an async scan", description = "Schedules a scan job and returns a job status.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "202", description = "Job scheduled", content = @Content(mediaType =
-                                                                                                          "application/json", schema = @Schema(implementation = ScanJobStatus.class), examples = @ExampleObject(name = "queued", value = """
+  @PostMapping("/async")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  @Operation(
+      summary = "Start an async scan",
+      description = "Schedules a scan job and returns a job status.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "202",
+        description = "Job scheduled",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ScanJobStatus.class),
+                examples =
+                    @ExampleObject(
+                        name = "queued",
+                        value =
+                            """
                     {
                       "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
                       "image": "nginx:1.25",
@@ -131,29 +179,47 @@ public class ScanController {
                       "finishedAt": null
                     }
                     """))),
-            @ApiResponse(responseCode = "500", description = "Job store failure", content = @Content(mediaType =
-                                                                                                             "application/json", examples = @ExampleObject(value = """
+    @ApiResponse(
+        responseCode = "500",
+        description = "Job store failure",
+        content =
+            @Content(
+                mediaType = "application/json",
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
                     {"errorCode":"JOB_STORE_ERROR","message":"Failed to persist scan job status","details":{}}
                     """)))
-    })
-    public ScanJobStatus createAsync(@RequestBody ScanRequest request)
-            throws ScanJobStore.StoreWriteException {
-        validate(request);
-        return scanJobCoordinator.submit(request);
-    }
-    
-    /**
-     * GET /api/v1/scans/{scanId}?raw=true|false
-     * - raw=true => return verbatim Trivy JSON
-     * - default => return normalized result
-     */
-    @GetMapping("/{scanId}")
-    @Operation(summary = "Get a scan by ID", description = "Returns the normalized scan by default; pass `raw=true` " +
-            "to get the raw Trivy JSON.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Normalized result (default)", content =
-            @Content(mediaType = "application/json", schema = @Schema(implementation = ScanResult.class), examples =
-            @ExampleObject(name = "normalized", value = """
+  })
+  public ScanJobStatus createAsync(@RequestBody ScanRequest request)
+      throws ScanJobStore.StoreWriteException {
+    validate(request);
+    return scanJobCoordinator.submit(request);
+  }
+
+  /**
+   * GET /api/v1/scans/{scanId}?raw=true|false - raw=true => return verbatim Trivy JSON - default =>
+   * return normalized result
+   */
+  @GetMapping("/{scanId}")
+  @Operation(
+      summary = "Get a scan by ID",
+      description =
+          "Returns the normalized scan by default; pass `raw=true` " + "to get the raw Trivy JSON.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Normalized result (default)",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ScanResult.class),
+                examples =
+                    @ExampleObject(
+                        name = "normalized",
+                        value =
+                            """
                     {
                       "scanId": "c9b3a6e3-5d7e-4a06-9c7a-0b2a9d347e77",
                       "image": "nginx:1.25",
@@ -166,129 +232,164 @@ public class ScanController {
                       "findings": [ { "cveId":"CVE-2024-XXXX", "package":"openssl", "severity":"HIGH" } ]
                     }
                     """))),
-            @ApiResponse(responseCode = "200", description = "Raw Trivy JSON when `raw=true`", content =
-            @Content(mediaType = "application/json", schema = @Schema(implementation = Object.class), examples =
-            @ExampleObject(name = "raw", value = """
+    @ApiResponse(
+        responseCode = "200",
+        description = "Raw Trivy JSON when `raw=true`",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Object.class),
+                examples =
+                    @ExampleObject(
+                        name = "raw",
+                        value =
+                            """
                     {"ArtifactName":"nginx:1.25","Results":[{"Target":"alpine:3.19","Vulnerabilities":[{"VulnerabilityID":"CVE-2024-XXXX","PkgName":"openssl","Severity":"HIGH"}]}]}
                     """))),
-            @ApiResponse(responseCode = "404", description = "Not found", content = @Content(mediaType = "application" +
-                    "/json", examples = @ExampleObject(value = """
+    @ApiResponse(
+        responseCode = "404",
+        description = "Not found",
+        content =
+            @Content(
+                mediaType = "application" + "/json",
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
                     {"errorCode":"NOT_FOUND","message":"Scan not found or expired: <uuid>","details":{}}
                     """)))
-    })
-    public ResponseEntity<?> get(@PathVariable("scanId") UUID scanId,
-                                 @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
-        // 1) Try Redis
-        var cachedOpt = cache.get(scanId);
-        if (cachedOpt.isPresent()) {
-            var cached = cachedOpt.get();
-            if (raw) {
-                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(cached.rawJson());
-            }
-            return ResponseEntity.ok(cached.normalized());
-        }
-        
-        // 2) Fallback to DB
-        var loadedOpt = persistence.find(scanId, raw);
-        if (loadedOpt.isPresent()) {
-            var loaded = loadedOpt.get();
-            try {
-                var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
-                cache.put(scanId, loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
-            } catch (ScanCache.CacheWriteException e) {
-                log.warn("[scan-service] Cache put failed on DB fallback for scanId={}", scanId, e);
-            }
-            if (raw) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(loaded.rawJsonOptional().orElse("{}"));
-            }
-            return ResponseEntity.ok(loaded.normalized());
-        }
-        throw new NotFoundException("Scan not found or expired: " + scanId);
+  })
+  public ResponseEntity<?> get(
+      @PathVariable("scanId") UUID scanId,
+      @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
+    // 1) Try Redis
+    var cachedOpt = cache.get(scanId);
+    if (cachedOpt.isPresent()) {
+      var cached = cachedOpt.get();
+      if (raw) {
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(cached.rawJson());
+      }
+      return ResponseEntity.ok(cached.normalized());
     }
 
-    @GetMapping("/jobs/{scanId}")
-    @Operation(summary = "Get async scan job status")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Job status", content = @Content(mediaType =
-                                                                                                       "application/json", schema = @Schema(implementation = ScanJobStatus.class))),
-            @ApiResponse(responseCode = "404", description = "Job not found", content = @Content(mediaType =
-                                                                                                          "application/json", examples = @ExampleObject(value = """
+    // 2) Fallback to DB
+    var loadedOpt = persistence.find(scanId, raw);
+    if (loadedOpt.isPresent()) {
+      var loaded = loadedOpt.get();
+      try {
+        var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
+        cache.put(scanId, loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
+      } catch (ScanCache.CacheWriteException e) {
+        log.warn("[scan-service] Cache put failed on DB fallback for scanId={}", scanId, e);
+      }
+      if (raw) {
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(loaded.rawJsonOptional().orElse("{}"));
+      }
+      return ResponseEntity.ok(loaded.normalized());
+    }
+    throw new NotFoundException("Scan not found or expired: " + scanId);
+  }
+
+  @GetMapping("/jobs/{scanId}")
+  @Operation(summary = "Get async scan job status")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Job status",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ScanJobStatus.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Job not found",
+        content =
+            @Content(
+                mediaType = "application/json",
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
                     {"errorCode":"NOT_FOUND","message":"Scan job not found: <uuid>","details":{}}
                     """)))
-    })
-    public ScanJobStatus getJob(@PathVariable("scanId") UUID scanId) {
-        return scanJobCoordinator.get(scanId)
-                .orElseThrow(() -> new NotFoundException("Scan job not found: " + scanId));
+  })
+  public ScanJobStatus getJob(@PathVariable("scanId") UUID scanId) {
+    return scanJobCoordinator
+        .get(scanId)
+        .orElseThrow(() -> new NotFoundException("Scan job not found: " + scanId));
+  }
+
+  @GetMapping(params = "imageRef")
+  @Operation(
+      summary = "Get the latest scan by imageRef",
+      description = "Returns the cached or most recent scan for the " + "provided image reference.")
+  public ResponseEntity<?> getLatestByImage(
+      @RequestParam("imageRef") String imageRef,
+      @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
+    validateImageRef(imageRef, "imageRef");
+
+    var loadedOpt = persistence.findLatestByImage(imageRef, raw);
+    if (loadedOpt.isEmpty()) {
+      throw new NotFoundException("Scan not found or expired for image: " + imageRef);
     }
 
-    @GetMapping(params = "imageRef")
-    @Operation(summary = "Get the latest scan by imageRef", description = "Returns the cached or most recent scan for the " +
-            "provided image reference.")
-    public ResponseEntity<?> getLatestByImage(@RequestParam("imageRef") String imageRef,
-                                              @RequestParam(name = "raw", required = false, defaultValue = "false") boolean raw) {
-        validateImageRef(imageRef, "imageRef");
-
-        var loadedOpt = persistence.findLatestByImage(imageRef, raw);
-        if (loadedOpt.isEmpty()) {
-            throw new NotFoundException("Scan not found or expired for image: " + imageRef);
-        }
-
-        var loaded = loadedOpt.get();
-        try {
-            var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
-            cache.put(loaded.scanId(), loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
-        } catch (ScanCache.CacheWriteException e) {
-            log.warn("[scan-service] Cache put failed on imageRef lookup for {}", imageRef, e);
-        }
-
-        if (raw) {
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(loaded.rawJsonOptional().orElse("{}"));
-        }
-        return ResponseEntity.ok(loaded.normalized());
-    }
-    
-    /**
-     * Minimal, temporary validation (we'll replace with a proper validator/handler)
-     */
-    private static void validate(ScanRequest req) {
-        if (req == null) {
-            throw new IllegalArgumentException("image is required");
-        }
-        validateImageRef(req.image(), "image");
-        if (req.registryCreds() != null) {
-            if (req.registryCreds().username() == null || req.registryCreds().username().isBlank()) {
-                throw new IllegalArgumentException("registryCreds.username must be non-empty when provided");
-            }
-            if (req.registryCreds().password() == null || req.registryCreds().password().isBlank()) {
-                throw new IllegalArgumentException("registryCreds.password must be non-empty when provided");
-            }
-        }
-        if (req.options() != null) {
-            Integer t = req.options().timeoutSec();
-            if (t != null && (t < 10 || t > 900)) {
-                throw new IllegalArgumentException("options.timeoutSec must be between 10 and 900");
-            }
-            if (req.options().scanners() != null && !req.options().scanners().equals(java.util.List.of("vuln"))) {
-                throw new IllegalArgumentException("options.scanners must be [\"vuln\"] for MVP");
-            }
-        }
+    var loaded = loadedOpt.get();
+    try {
+      var ttl = Duration.ofSeconds(properties.getCache().getTtlSeconds());
+      cache.put(loaded.scanId(), loaded.normalized(), loaded.rawJsonOptional().orElse(null), ttl);
+    } catch (ScanCache.CacheWriteException e) {
+      log.warn("[scan-service] Cache put failed on imageRef lookup for {}", imageRef, e);
     }
 
-    private static void validateImageRef(String imageRef, String fieldName) {
-        if (imageRef == null || imageRef.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " is required");
-        }
-        if (imageRef.startsWith("-")) {
-            throw new IllegalArgumentException(fieldName + " must not start with '-'");
-        }
-        for (int i = 0; i < imageRef.length(); i++) {
-            if (Character.isWhitespace(imageRef.charAt(i))) {
-                throw new IllegalArgumentException(fieldName + " must not contain whitespace");
-            }
-        }
+    if (raw) {
+      return ResponseEntity.ok()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(loaded.rawJsonOptional().orElse("{}"));
     }
+    return ResponseEntity.ok(loaded.normalized());
+  }
+
+  /** Minimal, temporary validation (we'll replace with a proper validator/handler) */
+  private static void validate(ScanRequest req) {
+    if (req == null) {
+      throw new IllegalArgumentException("image is required");
+    }
+    validateImageRef(req.image(), "image");
+    if (req.registryCreds() != null) {
+      if (req.registryCreds().username() == null || req.registryCreds().username().isBlank()) {
+        throw new IllegalArgumentException(
+            "registryCreds.username must be non-empty when provided");
+      }
+      if (req.registryCreds().password() == null || req.registryCreds().password().isBlank()) {
+        throw new IllegalArgumentException(
+            "registryCreds.password must be non-empty when provided");
+      }
+    }
+    if (req.options() != null) {
+      Integer t = req.options().timeoutSec();
+      if (t != null && (t < 10 || t > 900)) {
+        throw new IllegalArgumentException("options.timeoutSec must be between 10 and 900");
+      }
+      if (req.options().scanners() != null
+          && !req.options().scanners().equals(java.util.List.of("vuln"))) {
+        throw new IllegalArgumentException("options.scanners must be [\"vuln\"] for MVP");
+      }
+    }
+  }
+
+  private static void validateImageRef(String imageRef, String fieldName) {
+    if (imageRef == null || imageRef.isBlank()) {
+      throw new IllegalArgumentException(fieldName + " is required");
+    }
+    if (imageRef.startsWith("-")) {
+      throw new IllegalArgumentException(fieldName + " must not start with '-'");
+    }
+    for (int i = 0; i < imageRef.length(); i++) {
+      if (Character.isWhitespace(imageRef.charAt(i))) {
+        throw new IllegalArgumentException(fieldName + " must not contain whitespace");
+      }
+    }
+  }
 }

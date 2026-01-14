@@ -11,24 +11,22 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class RequestIdFilter implements GlobalFilter, Ordered {
-    public static final String HEADER = "X-Request-Id";
+  public static final String HEADER = "X-Request-Id";
 
-    @Override
-    public int getOrder() {
-        return -5;
+  @Override
+  public int getOrder() {
+    return -5;
+  }
+
+  @Override
+  public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    String requestId = exchange.getRequest().getHeaders().getFirst(HEADER);
+    if (requestId == null || requestId.isBlank()) {
+      requestId = UUID.randomUUID().toString();
     }
 
-    @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String requestId = exchange.getRequest().getHeaders().getFirst(HEADER);
-        if (requestId == null || requestId.isBlank()) {
-            requestId = UUID.randomUUID().toString();
-        }
-
-        ServerHttpRequest mutated = exchange.getRequest().mutate()
-                .header(HEADER, requestId)
-                .build();
-        exchange.getResponse().getHeaders().set(HEADER, requestId);
-        return chain.filter(exchange.mutate().request(mutated).build());
-    }
+    ServerHttpRequest mutated = exchange.getRequest().mutate().header(HEADER, requestId).build();
+    exchange.getResponse().getHeaders().set(HEADER, requestId);
+    return chain.filter(exchange.mutate().request(mutated).build());
+  }
 }

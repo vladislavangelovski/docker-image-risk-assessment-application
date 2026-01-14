@@ -3,8 +3,4 @@ package com.finki.vladislavangelovski.common.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record AssessImageRequest(
-        String imageRef,
-        Integer k
-) {
-}
+public record AssessImageRequest(String imageRef, Integer k) {}

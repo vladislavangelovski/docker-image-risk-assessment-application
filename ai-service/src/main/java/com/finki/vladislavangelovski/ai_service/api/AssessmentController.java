@@ -11,24 +11,23 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/assess")
 public class AssessmentController {
-    private final AssessmentService assessmentService;
-    
-    public AssessmentController(AssessmentService assessmentService) {
-        this.assessmentService = assessmentService;
+  private final AssessmentService assessmentService;
+
+  public AssessmentController(AssessmentService assessmentService) {
+    this.assessmentService = assessmentService;
+  }
+
+  @PostMapping("/image")
+  public AssessImageResponse assessImage(@RequestBody AssessImageRequest request) {
+    if (request == null || !StringUtils.hasText(request.imageRef())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "imageRef is required");
     }
-    
-    @PostMapping("/image")
-    public AssessImageResponse assessImage(@RequestBody AssessImageRequest request) {
-        if (request == null || !StringUtils.hasText(request.imageRef())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "imageRef is required");
-        }
-        return assessmentService.assessImage(
-                new AssessImageRequest(request.imageRef(), request.k() != null ? request.k() : 6));
-    }
-    
-    @GetMapping("/ping")
-    public String ping() {
-        return "ok";
-    }
-    
+    return assessmentService.assessImage(
+        new AssessImageRequest(request.imageRef(), request.k() != null ? request.k() : 6));
+  }
+
+  @GetMapping("/ping")
+  public String ping() {
+    return "ok";
+  }
 }

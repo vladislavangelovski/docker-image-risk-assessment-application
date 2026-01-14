@@ -46,6 +46,7 @@ jobs:
         run: mvn -B -ntp spotless:check
 
   dependency-check:
+    if: ${{ secrets.NVD_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,7 +71,7 @@ jobs:
           path: ~/.m2/repository
 
       - name: OWASP dependency check
-        run: mvn -B -ntp -DskipTests org.owasp:dependency-check-maven:check
+        run: mvn -B -ntp -DskipTests -Dnvd.api.key=${{ secrets.NVD_API_KEY }} org.owasp:dependency-check-maven:check
 
   frontend:
     runs-on: ubuntu-latest

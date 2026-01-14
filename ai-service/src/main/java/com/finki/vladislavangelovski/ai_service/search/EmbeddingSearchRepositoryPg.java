@@ -1,70 +1,73 @@
 package com.finki.vladislavangelovski.ai_service.search;
 
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
 public class EmbeddingSearchRepositoryPg implements EmbeddingSearchRepository {
-    private final JdbcTemplate jdbc;
-    
-    public EmbeddingSearchRepositoryPg(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+  private final JdbcTemplate jdbc;
+
+  public EmbeddingSearchRepositoryPg(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
+  }
+
+  private static String toPgVectorLiteral(double[] v) {
+    StringBuilder sb = new StringBuilder(2 + v.length * 8);
+    sb.append('[');
+    for (int i = 0; i < v.length; i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      sb.append(v[i]);
     }
-    
-    private static String toPgVectorLiteral(double[] v) {
-        StringBuilder sb = new StringBuilder(2 + v.length * 8);
-        sb.append('[');
-        for (int i = 0; i < v.length; i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            sb.append(v[i]);
-        }
-        sb.append(']');
-        return sb.toString();
+    sb.append(']');
+    return sb.toString();
+  }
+
+  private static final RowMapper<SearchHit> MAPPER =
+      (rs, i) ->
+          new SearchHit(
+              rs.getString("cve_id"),
+              rs.getString("title"),
+              rs.getString("description"),
+              toNullableDouble(rs.getObject("epss")),
+              toNullableDouble(rs.getObject("cvss_base")),
+              rs.getDouble("sim"));
+
+  private static Double toNullableDouble(Object value) {
+    if (value == null) {
+      return null;
     }
-    
-    private static final RowMapper<SearchHit> MAPPER = (rs, i) -> new SearchHit(
-            rs.getString("cve_id"),
-            rs.getString("title"),
-            rs.getString("description"),
-            toNullableDouble(rs.getObject("epss")),
-            toNullableDouble(rs.getObject("cvss_base")),
-            rs.getDouble("sim")
-    );
-    
-    private static Double toNullableDouble(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number n) {
-            return n.doubleValue();
-        }
-        try {
-            return Double.valueOf(value.toString());
-        } catch (Exception ignored) {
-            return null;
-        }
+    if (value instanceof Number n) {
+      return n.doubleValue();
     }
-    
-    @Override
-    public List<SearchHit> search(double[] queryEmbedding, int k) {
-        final String vec = toPgVectorLiteral(queryEmbedding);
-        final String sql =
-                "WITH q AS (SELECT ?::vector AS v) " +
-                        "SELECT cve_id, title, description, epss, cvss_base, " +
-                        "       1 - (embedding <=> q.v) AS sim " +
-                        "FROM cve_embeddings, q " +
-                        "ORDER BY embedding <=> q.v " +
-                        "LIMIT ?";
-        
-        return jdbc.query(sql, ps -> {
-            ps.setString(1, vec);
-            ps.setInt(2, k);
-        }, MAPPER);
+    try {
+      return Double.valueOf(value.toString());
+    } catch (Exception ignored) {
+      return null;
     }
+  }
+
+  @Override
+  public List<SearchHit> search(double[] queryEmbedding, int k) {
+    final String vec = toPgVectorLiteral(queryEmbedding);
+    final String sql =
+        "WITH q AS (SELECT ?::vector AS v) "
+            + "SELECT cve_id, title, description, epss, cvss_base, "
+            + "       1 - (embedding <=> q.v) AS sim "
+            + "FROM cve_embeddings, q "
+            + "ORDER BY embedding <=> q.v "
+            + "LIMIT ?";
+
+    return jdbc.query(
+        sql,
+        ps -> {
+          ps.setString(1, vec);
+          ps.setInt(2, k);
+        },
+        MAPPER);
+  }
 }

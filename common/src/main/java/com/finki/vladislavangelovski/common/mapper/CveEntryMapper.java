@@ -6,7 +6,7 @@ import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface CveEntryMapper {
-    CveEntryDto toDto(CveEntry entry);
-    
-    CveEntry toModel(CveEntryDto dto);
+  CveEntryDto toDto(CveEntry entry);
+
+  CveEntry toModel(CveEntryDto dto);
 }

@@ -6,7 +6,7 @@ import com.finki.vladislavangelovski.common.dto.QaQuestionRequest;
 import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
 
 public interface QaService {
-    QaQuestionResponse answerQuestion(QaQuestionRequest request);
-    
-    QaClaimResponse judge(QaClaimRequest request);
+  QaQuestionResponse answerQuestion(QaQuestionRequest request);
+
+  QaClaimResponse judge(QaClaimRequest request);
 }

@@ -32,15 +32,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
 
       INGEST_ENABLED: "true"
-      INGEST_STARTUP_ENABLED: "true"
+      INGEST_STARTUP_ENABLED: "${INGEST_STARTUP_ENABLED:-true}"
       # Startup should be fast so the stack can come up:
       # EPSS = run only EPSS at startup (recommended day-to-day)
       # ALL  = run NVD + EPSS (use when you want a full lookback backfill)
-      INGEST_STARTUP_MODE: "EPSS"
+      INGEST_STARTUP_MODE: "${INGEST_STARTUP_MODE:-EPSS}"
 
-      INGEST_NVD_LOOKBACK_DAYS: 365
-      INGEST_NVD_MAX_WINDOW_DAYS: 120
-      INGEST_BOOTSTRAP_ENABLED: ${INGEST_BOOTSTRAP_ENABLED:-false}
+      INGEST_NVD_LOOKBACK_DAYS: "${INGEST_NVD_LOOKBACK_DAYS:-365}"
+      INGEST_NVD_MAX_WINDOW_DAYS: "${INGEST_NVD_MAX_WINDOW_DAYS:-120}"
+      INGEST_BOOTSTRAP_ENABLED: "${INGEST_BOOTSTRAP_ENABLED:-false}"
 
       # Enable /actuator/health/liveness and /readiness
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"

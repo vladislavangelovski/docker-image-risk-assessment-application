@@ -8,17 +8,17 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(ResponseStatusException.class)
-    public ProblemDetail handleRse(ResponseStatusException ex) {
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
-        pd.setTitle("Request Error");
-        return pd;
-    }
-    
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIae(IllegalArgumentException ex) {
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        pd.setTitle("Validation Error");
-        return pd;
-    }
+  @ExceptionHandler(ResponseStatusException.class)
+  public ProblemDetail handleRse(ResponseStatusException ex) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
+    pd.setTitle("Request Error");
+    return pd;
+  }
+
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ProblemDetail handleIae(IllegalArgumentException ex) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    pd.setTitle("Validation Error");
+    return pd;
+  }
 }

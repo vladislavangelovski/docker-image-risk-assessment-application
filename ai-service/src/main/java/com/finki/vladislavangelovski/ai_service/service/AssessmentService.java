@@ -4,5 +4,5 @@ import com.finki.vladislavangelovski.common.dto.AssessImageRequest;
 import com.finki.vladislavangelovski.common.dto.AssessImageResponse;
 
 public interface AssessmentService {
-    AssessImageResponse assessImage(AssessImageRequest request);
+  AssessImageResponse assessImage(AssessImageRequest request);
 }

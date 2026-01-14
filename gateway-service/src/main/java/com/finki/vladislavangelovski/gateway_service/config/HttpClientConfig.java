@@ -11,15 +11,17 @@ import reactor.netty.http.client.HttpClient;
 @Configuration
 public class HttpClientConfig {
 
-    @Bean
-    public HttpClient gatewayHttpClient() {
-        return HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .responseTimeout(Duration.ofSeconds(180));
-    }
+  @Bean
+  public HttpClient gatewayHttpClient() {
+    return HttpClient.create()
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+        .responseTimeout(Duration.ofSeconds(180));
+  }
 
-    @Bean
-    public WebClient webClient(HttpClient gatewayHttpClient) {
-        return WebClient.builder().clientConnector(new ReactorClientHttpConnector(gatewayHttpClient)).build();
-    }
+  @Bean
+  public WebClient webClient(HttpClient gatewayHttpClient) {
+    return WebClient.builder()
+        .clientConnector(new ReactorClientHttpConnector(gatewayHttpClient))
+        .build();
+  }
 }

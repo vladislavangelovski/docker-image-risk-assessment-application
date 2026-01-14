@@ -8,18 +8,17 @@ import reactor.core.publisher.Mono;
 @Component
 public class GatewayDependenciesHealthIndicator implements ReactiveHealthIndicator {
 
-    private final DependencyHealthService dependencyHealthService;
+  private final DependencyHealthService dependencyHealthService;
 
-    public GatewayDependenciesHealthIndicator(DependencyHealthService dependencyHealthService) {
-        this.dependencyHealthService = dependencyHealthService;
-    }
+  public GatewayDependenciesHealthIndicator(DependencyHealthService dependencyHealthService) {
+    this.dependencyHealthService = dependencyHealthService;
+  }
 
-    @Override
-    public Mono<Health> health() {
-        return dependencyHealthService.checkDependencies()
-                .map(summary ->
-                        Health.status(summary.status())
-                                .withDetails(summary.dependencies())
-                                .build());
-    }
+  @Override
+  public Mono<Health> health() {
+    return dependencyHealthService
+        .checkDependencies()
+        .map(
+            summary -> Health.status(summary.status()).withDetails(summary.dependencies()).build());
+  }
 }

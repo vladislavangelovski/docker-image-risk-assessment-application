@@ -9,25 +9,28 @@ import reactor.core.publisher.Mono;
 @RestController
 public class HealthController {
 
-    private final DependencyHealthService dependencyHealthService;
+  private final DependencyHealthService dependencyHealthService;
 
-    public HealthController(DependencyHealthService dependencyHealthService) {
-        this.dependencyHealthService = dependencyHealthService;
-    }
+  public HealthController(DependencyHealthService dependencyHealthService) {
+    this.dependencyHealthService = dependencyHealthService;
+  }
 
-    @GetMapping("/health")
-    public Mono<ResponseEntity<HealthStatus>> health() {
-        return dependencyHealthService
-                .checkDependencies()
-                .map(
-                        health -> {
-                            HttpStatus status = health.status().equals(org.springframework.boot.actuate.health.Status.UP)
-                                    ? HttpStatus.OK
-                                    : HttpStatus.SERVICE_UNAVAILABLE;
-                            return ResponseEntity.status(status)
-                                    .body(new HealthStatus(health.status().getCode(), health.dependencies()));
-                        });
-    }
+  @GetMapping("/health")
+  public Mono<ResponseEntity<HealthStatus>> health() {
+    return dependencyHealthService
+        .checkDependencies()
+        .map(
+            health -> {
+              HttpStatus status =
+                  health.status().equals(org.springframework.boot.actuate.health.Status.UP)
+                      ? HttpStatus.OK
+                      : HttpStatus.SERVICE_UNAVAILABLE;
+              return ResponseEntity.status(status)
+                  .body(new HealthStatus(health.status().getCode(), health.dependencies()));
+            });
+  }
 
-    public record HealthStatus(String status, java.util.Map<String, DependencyHealthService.DependencyHealth> dependencies) {}
+  public record HealthStatus(
+      String status,
+      java.util.Map<String, DependencyHealthService.DependencyHealth> dependencies) {}
 }

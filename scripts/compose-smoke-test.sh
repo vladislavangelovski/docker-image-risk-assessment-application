@@ -3,6 +3,9 @@ set -euo pipefail
 
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:8080}"
 MAX_WAIT_SECONDS="${MAX_WAIT_SECONDS:-240}"
+INGEST_STARTUP_ENABLED="${INGEST_STARTUP_ENABLED:-false}"
+
+export INGEST_STARTUP_ENABLED
 
 cleanup() {
   docker compose down -v --remove-orphans

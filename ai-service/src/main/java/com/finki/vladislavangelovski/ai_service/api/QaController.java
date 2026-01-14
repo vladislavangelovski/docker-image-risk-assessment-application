@@ -16,27 +16,28 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/qa")
 public class QaController {
-    private final QaService qaService;
-    
-    public QaController(QaService qaService) {
-        this.qaService = qaService;
+  private final QaService qaService;
+
+  public QaController(QaService qaService) {
+    this.qaService = qaService;
+  }
+
+  @PostMapping("/question")
+  public QaQuestionResponse answerQuestion(@RequestBody QaQuestionRequest request) {
+    if (request == null || !StringUtils.hasText(request.question())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question is required");
     }
-    
-    @PostMapping("/question")
-    public QaQuestionResponse answerQuestion(@RequestBody QaQuestionRequest request) {
-        if (request == null || !StringUtils.hasText(request.question())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question is required");
-        }
-        
-        Integer k = request.k() != null ? request.k() : 4;
-        return qaService.answerQuestion(new QaQuestionRequest(request.question(), request.imageRef(), k));
+
+    Integer k = request.k() != null ? request.k() : 4;
+    return qaService.answerQuestion(
+        new QaQuestionRequest(request.question(), request.imageRef(), k));
+  }
+
+  @PostMapping("/claim")
+  public QaClaimResponse judge(@RequestBody QaClaimRequest request) {
+    if (request == null || !StringUtils.hasText(request.claim())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "claim is required");
     }
-    
-    @PostMapping("/claim")
-    public QaClaimResponse judge(@RequestBody QaClaimRequest request) {
-        if (request == null || !StringUtils.hasText(request.claim())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "claim is required");
-        }
-        return qaService.judge(request);
-    }
+    return qaService.judge(request);
+  }
 }
