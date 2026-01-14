@@ -115,7 +115,7 @@ Legend:
 - [x] JUnit 5 tests exist
 - [x] Spring Boot integration tests exist (H2-backed) (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerSpringBootTest.java`)
 - [x] Testcontainers integration tests (Postgres)
-- [ ] Service contract tests (gateway ↔ services)
+- [x] Service contract tests (gateway route contract coverage)
 - [ ] Frontend CI (typecheck + build + UI smoke tests) (frontend exists; CI not added yet)
 - [ ] Compose-based smoke test for the full flow (no script/job yet)
 
