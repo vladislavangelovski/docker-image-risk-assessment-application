@@ -59,8 +59,14 @@ public class QaServiceImpl implements QaService {
         Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
         for (ScanFinding f : scan.findings()) {
             if (f == null || f.cveId() == null || f.cveId().isBlank()) continue;
-            
-            List<String> pkgs = f.packages() != null ? f.packages() : List.of();
+
+            List<String> pkgs = new ArrayList<>();
+            if (f.packages() != null) {
+                pkgs.addAll(f.packages());
+            }
+            if (f.packageName() != null && !f.packageName().isBlank()) {
+                pkgs.add(f.packageName());
+            }
             packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>()).addAll(pkgs);
         }
         
@@ -109,8 +115,14 @@ public class QaServiceImpl implements QaService {
         Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
         for (ScanFinding f : scan.findings()) {
             if (f == null || f.cveId() == null || f.cveId().isBlank()) continue;
-            
-            List<String> pkgs = f.packages() != null ? f.packages() : List.of();
+
+            List<String> pkgs = new ArrayList<>();
+            if (f.packages() != null) {
+                pkgs.addAll(f.packages());
+            }
+            if (f.packageName() != null && !f.packageName().isBlank()) {
+                pkgs.add(f.packageName());
+            }
             packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>()).addAll(pkgs);
         }
         

@@ -19,7 +19,10 @@ public class SemanticSearchController {
     }
     
     @PostMapping(value = "/search", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public SearchResponse search(@RequestBody SearchRequest req) {
+    public SearchResponse search(@RequestBody(required = false) SearchRequest req) {
+        if (req == null) {
+            throw new IllegalArgumentException("request body is required");
+        }
         int k = (req.k() == null) ? 10 : Math.max(1, Math.min(50, req.k()));
         long t0 = System.currentTimeMillis();
         List<SearchHit> hits = svc.search(req.query(), k);

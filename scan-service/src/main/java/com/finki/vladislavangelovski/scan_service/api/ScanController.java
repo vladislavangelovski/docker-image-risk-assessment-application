@@ -113,7 +113,7 @@ public class ScanController {
      * - raw=true => return verbatim Trivy JSON
      * - default => return normalized result
      */
-    @GetMapping("{scanId}")
+    @GetMapping("/{scanId}")
     @Operation(summary = "Get a scan by ID", description = "Returns the normalized scan by default; pass `raw=true` " +
             "to get the raw Trivy JSON.")
     @ApiResponses({
