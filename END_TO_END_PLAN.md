@@ -117,7 +117,7 @@ Legend:
 - [x] Testcontainers integration tests (Postgres)
 - [x] Service contract tests (gateway route contract coverage)
 - [x] Frontend CI (typecheck + build)
-- [ ] Compose-based smoke test for the full flow (no script/job yet)
+- [x] Compose-based smoke test for the full flow
 
 ## Phase 10 – Kubernetes Deployment
 - [ ] Manifests or Helm charts (Deployments, Services, ConfigMaps, Secrets) (none in repo yet)
