@@ -45,6 +45,33 @@ jobs:
       - name: Spotless format check
         run: mvn -B -ntp spotless:check
 
+  dependency-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          path: ~/.m2/repository
+
+      - name: OWASP dependency check
+        run: mvn -B -ntp -DskipTests org.owasp:dependency-check-maven:check
+
   build-and-push:
     runs-on: ubuntu-latest
     permissions:

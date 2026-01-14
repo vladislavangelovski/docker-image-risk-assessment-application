@@ -66,6 +66,18 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>9.2.0</version>
+                    <configuration>
+                        <failBuildOnCVSS>9.0</failBuildOnCVSS>
+                        <formats>
+                            <format>HTML</format>
+                            <format>JSON</format>
+                        </formats>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>

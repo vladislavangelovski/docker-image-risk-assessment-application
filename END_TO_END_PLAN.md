@@ -111,7 +111,7 @@ Legend:
 - [x] GitHub Actions: build → test (`mvn ... verify`) (see `.github/workflows/ci.yml`)
 - [x] GitHub Actions: Docker build (and push on main/tags) (see `.github/workflows/ci.yml`)
 - [x] Formatting/lint gates enforced in CI (Spotless check job)
-- [ ] OWASP dependency checks (or other SCA tooling)
+- [x] OWASP dependency checks (dependency-check Maven plugin + CI job)
 - [x] JUnit 5 tests exist
 - [x] Spring Boot integration tests exist (H2-backed) (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerSpringBootTest.java`)
 - [ ] Testcontainers integration tests (Postgres) (not present)
