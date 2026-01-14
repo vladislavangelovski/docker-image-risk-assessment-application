@@ -59,7 +59,7 @@ Legend:
 - [x] Persistence via JPA entities + Flyway migrations (see `cve-store-service/src/main/resources/db/migration`)
 - [x] Indexes tuned for CVE lookups and enrichment queries (see `cve-store-service/src/main/resources/db/migration`)
 - [x] REST endpoints for CVE/EPSS lookups (see `cve-store-service/src/main/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryController.java`)
-- [ ] Optional admin endpoints for ingestion control (no explicit “trigger ingestion now” API yet)
+- [x] Optional admin endpoints for ingestion control (trigger ingestion now API added)
 
 ## Phase 4 – scan-service
 - [x] Integrate Trivy and parse results into a normalized scan DTO (see `scan-service/src/main/java/com/finki/vladislavangelovski/scan_service/core/impl/JacksonTrivyParser.java`)
