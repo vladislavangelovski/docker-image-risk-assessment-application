@@ -136,6 +136,17 @@ services:
   cve-store-base-url: http://cve-store:8080
   ai-base-url: http://ai-service:8083
 
+gateway:
+  auth:
+    enabled: false
+    header: X-API-Key
+    api-key: ${GATEWAY_API_KEY:}
+    excluded-paths:
+      - /actuator
+      - /health
+      - /swagger-ui
+      - /v3/api-docs
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

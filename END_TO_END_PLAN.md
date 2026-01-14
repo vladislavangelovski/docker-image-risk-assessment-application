@@ -80,7 +80,7 @@ Legend:
 
 ## Phase 6 – gateway-service
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
-- [ ] Authentication/authorization at the gateway (currently disabled)
+- [x] Authentication/authorization at the gateway (configurable API key filter)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [ ] Correlation IDs propagated end-to-end
 - [ ] Global error handling and consistent error payloads across services (gateway returns `ProblemDetail` for its own errors; downstream errors are not yet normalized)
