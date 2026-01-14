@@ -3,22 +3,42 @@
 This file mirrors `ROADMAP.md` and tracks implementation status based on what exists in this repository today (code +
 config). Keep it updated as phases are completed.
 
+This is **not** a release note. A checked item (`[x]`) means “implemented in-repo and referenced by config”, not
+necessarily “hardened and proven for production”. Use the **Production readiness gate** section below as the
+“ship/no-ship” checklist.
+
 Legend:
 - `- [x]` done in repo
 - `- [ ]` missing / needs work (or only partially done)
+
+## Production readiness gate (ship/no-ship)
+- [x] Secure-by-default gateway edge (CORS deny-all + trusted proxies allowlist) with `dev` profile override (see `gateway-service/src/main/resources/application.yml` and `gateway-service/src/main/resources/application-dev.yml`)
+- [ ] Authentication + authorization at the gateway (and protect admin endpoints)
+- [ ] Rate limiting + request size limits at the gateway (per-route; include scan and QA endpoints)
+- [ ] Correlation/request ID propagation end-to-end (gateway → services) and structured JSON logging with redaction rules
+- [ ] Metrics export (Prometheus) + dashboards/alerts (ingestion lag, scan duration, LLM latency/error rates, DB/Redis)
+- [ ] Distributed tracing (OpenTelemetry) with sampling and service-to-service context propagation
+- [ ] Health/readiness probes for **all** services (compose and Kubernetes), including `ai-service` dependency checks (DB + Ollama)
+- [ ] Secrets/config strategy for production (no committed `.env`; Kubernetes Secrets/ConfigMaps; rotation + least privilege)
+- [ ] Backup/restore runbook for PostgreSQL (including pgvector) + retention policy for raw scan outputs
+- [ ] CI security gates: dependency SCA, container scanning, SBOM generation (and optional image signing)
+- [ ] Kubernetes baseline: manifests/Helm, resource requests/limits, network policies, ingress/TLS, and environment profiles
+- [ ] Production profiles documented (CORS allowlist, logging levels, timeouts, model/provider config, feature flags)
+- [ ] Overload protection (scan/LLM concurrency limits, bulkheads, timeouts) and graceful degradation behavior documented
 
 ## Phase 0 – Define & Align Requirements & Scope
 - [ ] Revisit functional requirements: scan images, ingest CVE/EPSS, RAG QA (beyond `ROADMAP.md`/`README.md`)
 - [ ] Revisit non-functional requirements: performance, scalability, security, reliability, cost (beyond `ROADMAP.md`)
 - [ ] Draft minimal API spec (gateway-first) as a stable external contract
-  - [x] claim/question in → summary + evidence out (endpoints exist: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
-  - [x] assess image in → risk summary + findings out (endpoint exists: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/AssessmentController.java`)
+  - [x] claim/question in → summary + evidence out (gateway: `POST /api/v1/qa/*`, downstream: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
+  - [x] assess image in → risk summary + findings out (gateway: `POST /api/v1/assess/image`, downstream: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/AssessmentController.java`)
+- [ ] API versioning + deprecation policy (keep `/api/v1` stable; define how aliases are deprecated)
 - [x] Tech-stack confirmation: Java 21 + Spring Boot 3.x (see `pom.xml`)
 - [x] Maven multi-module layout (modules exist: `common`, `cve-store-service`, `scan-service`, `ai-service`, `gateway-service`) (see `pom.xml`)
 - [x] Redis + PostgreSQL wired (see `docker-compose.yml`)
 - [x] Docker Compose (local) (see `docker-compose.yml`)
 - [ ] Kubernetes (production target) tracked in repo (no manifests/helm yet)
-- [x] Spring Boot Actuator enabled (health endpoints + compose healthchecks) (see `docker-compose.yml`)
+- [x] Spring Boot Actuator enabled (health endpoints; compose healthchecks for Postgres/Redis/CVE Store/Scan/Gateway — `ai-service` has no healthcheck yet) (see `docker-compose.yml`)
 - [ ] Micrometer metrics export configured (no Prometheus registry/config yet; metrics endpoints not exposed)
 - [x] GitHub Actions CI/CD present (see `.github/workflows/ci.yml`)
 
@@ -70,7 +90,7 @@ Legend:
 ## Phase 7 – Frontend Web Application (UI)
 - [x] Choose stack: React + TypeScript + Vite
 - [x] UI library: MUI
-- [x] API client: generated from OpenAPI or typed wrapper
+- [x] API client: typed wrapper (see `frontend/src/api/client.ts` and `frontend/src/api/types.ts`)
 - [x] Config: `VITE_API_BASE_URL`
 - [x] Core screens (MVP): Dashboard, Image Risk Assessment, QA, CVE Lookup
 - [ ] Optional: Scan Viewer, Admin Embeddings (admin mode)
