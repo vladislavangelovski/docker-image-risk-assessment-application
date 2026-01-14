@@ -84,7 +84,7 @@ Legend:
 - [x] Authentication/authorization at the gateway (configurable API key filter)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [ ] Correlation IDs propagated end-to-end
-- [ ] Global error handling and consistent error payloads across services (gateway returns `ProblemDetail` for its own errors; downstream errors are not yet normalized)
+- [x] Global error handling and consistent error payloads across services (gateway normalizes errors to common payload)
 - [ ] Aggregate/normalize responses where needed (not implemented)
 - [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
 

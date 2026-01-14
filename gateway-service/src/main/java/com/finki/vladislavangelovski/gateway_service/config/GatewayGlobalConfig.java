@@ -2,19 +2,19 @@ package com.finki.vladislavangelovski.gateway_service.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finki.vladislavangelovski.common.error.ErrorResponse;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.util.Map;
 
 @Configuration
 public class GatewayGlobalConfig {
@@ -41,16 +41,17 @@ public class GatewayGlobalConfig {
 
         response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
-        problem.setTitle("Gateway Error");
-        problem.setDetail("Upstream service unavailable");
-        problem.setProperty("path", exchange.getRequest().getPath().value());
-        problem.setProperty("requestId", exchange.getRequest().getId());
-        problem.setProperty("timestamp", Instant.now().toString());
+        ErrorResponse error = ErrorResponse.of(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Upstream service unavailable",
+                exchange.getRequest().getPath().value(),
+                exchange.getRequest().getId(),
+                Map.of()
+        );
 
         byte[] body;
         try {
-            body = objectMapper.writeValueAsBytes(problem);
+            body = objectMapper.writeValueAsBytes(error);
         } catch (JsonProcessingException jsonException) {
             String fallback = "{\"status\":503,\"title\":\"Gateway Error\"}";
             body = fallback.getBytes(StandardCharsets.UTF_8);
