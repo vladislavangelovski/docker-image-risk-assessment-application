@@ -1,5 +1,15 @@
 # Project status and next-step course
 
+## Recent progress (fix plan completed)
+- Fixed scan retrieval route so `GET /api/v1/scans/{scanId}` works end-to-end.
+- Fixed AI QA “packages in image” wiring by mapping scan findings’ package field into AI package context.
+- Guarded semantic search endpoints against null request bodies (400 instead of NPE).
+- Hardened gateway defaults (secure-by-default CORS + trusted proxies) with a permissive `dev` profile override, and switched gateway errors to structured `ProblemDetail`.
+- Improved Trivy invocation reliability (timeouts/executor shutdown) and added defensive `imageRef` validation.
+- Aligned EPSS behavior to latest-only (one row per CVE) and improved ingestion robustness + NVD timestamp parsing.
+- Standardized semantic search on cosine similarity and made risk scoring honor configured weights.
+- Hardened build/test suite (POM fixes, renamed misleading “IT”, added Trivy parser fixtures + unit tests).
+
 ## Current implementation (by service)
 - **cve-store-service**: Scheduled `IngestionJob` pulls recent NVD CVEs and daily EPSS CSV, upserting through the service layer with startup bootstrap support. Flyway manages schema for CVE/EPSS tables and an embeddings table. REST controllers expose paging, EPSS lookup, and save operations backed by JPA entities, repositories, and MapStruct mappers.
 - **scan-service**: `ScanController` offers synchronous scan submission and retrieval with raw/normalized options. `DefaultScanOrchestrator` drives Trivy via `ProcessTrivyInvoker`, normalizes output with `JacksonTrivyParser`, persists results with `JdbcScanPersistence`, and caches them in Redis (or in-memory fallback) using `ScanCache`.

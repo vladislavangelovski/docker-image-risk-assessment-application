@@ -63,7 +63,7 @@ Legend:
 - [ ] Authentication/authorization at the gateway (currently disabled)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [ ] Correlation IDs propagated end-to-end
-- [ ] Global error handling and consistent error payloads across services (gateway mostly passes errors through today)
+- [ ] Global error handling and consistent error payloads across services (gateway returns `ProblemDetail` for its own errors; downstream errors are not yet normalized)
 - [ ] Aggregate/normalize responses where needed (not implemented)
 - [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
 
@@ -92,7 +92,8 @@ Legend:
 - [ ] Formatting/lint gates (Spotless/Checkstyle) enforced in CI (Spotless is present but not wired as a gate)
 - [ ] OWASP dependency checks (or other SCA tooling)
 - [x] JUnit 5 tests exist
-- [x] Testcontainers integration tests exist (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerIT.java`)
+- [x] Spring Boot integration tests exist (H2-backed) (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerSpringBootTest.java`)
+- [ ] Testcontainers integration tests (Postgres) (not present)
 - [ ] Service contract tests (gateway ↔ services)
 - [ ] Frontend CI (typecheck + build + UI smoke tests) (frontend exists; CI not added yet)
 - [ ] Compose-based smoke test for the full flow (no script/job yet)

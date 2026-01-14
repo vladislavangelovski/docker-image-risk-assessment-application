@@ -26,9 +26,9 @@ This project contains multiple microservices that together provide vulnerability
   - cve_id (FK -> cve_entry.cve_id)
   - score
   - percentile
-  - retrieved_at
+  - retrieved_at (latest-only; one row per cve_id)
 
-## Prerequsites
+## Prerequisites
 - Docker & Docker Compose (v1.29+)
 - Java 21 (for local build/tests)
 - Maven 3.9+
@@ -60,6 +60,13 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
     - Gateway API: `http://localhost:8080`
     - Swagger UI (aggregated): `http://localhost:8080/swagger-ui.html`
     - Frontend UI: `http://localhost:5173`
+
+### Security defaults (gateway)
+- **CORS**: locked down by default (`allowedOrigins: []`); the `dev` profile opens it up for local development (`gateway-service/src/main/resources/application-dev.yml`).
+- **Trusted proxies**: locked down by default (localhost-only); the `dev` profile allows all proxies for local compose.
+
+### Sensitive payload logging (scan-service)
+- Request payload logging is **off by default** (`scan-service/src/main/resources/application.yml` → `debug.http.log-requests=false`).
 
 ### Startup order & health
 - Postgres and Redis must be healthy before the app services start consuming them.
