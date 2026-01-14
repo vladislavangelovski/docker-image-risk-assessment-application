@@ -110,7 +110,7 @@ Legend:
 ## Phase 9 – CI/CD & Quality
 - [x] GitHub Actions: build → test (`mvn ... verify`) (see `.github/workflows/ci.yml`)
 - [x] GitHub Actions: Docker build (and push on main/tags) (see `.github/workflows/ci.yml`)
-- [ ] Formatting/lint gates (Spotless/Checkstyle) enforced in CI (Spotless is present but not wired as a gate)
+- [x] Formatting/lint gates enforced in CI (Spotless check job)
 - [ ] OWASP dependency checks (or other SCA tooling)
 - [x] JUnit 5 tests exist
 - [x] Spring Boot integration tests exist (H2-backed) (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerSpringBootTest.java`)
