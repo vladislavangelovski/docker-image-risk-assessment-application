@@ -143,18 +143,13 @@ services:
       SERVICES_CVESTORE_EPSS_PATH: /api/v1/cves/{cveId}/epss
 
       # === embeddings (Ollama) ===
-      AI_EMBEDDINGS_BASE_URL: "http://ollama:11434"
+      EMBEDDINGS_BASE_URL: "http://ollama:11434"
       EMBEDDINGS_MODEL: nomic-embed-text
       EMBEDDINGS_TIMEOUT_MS: "5000"
-      AI_EMBEDDINGS_DIM: "768"
+      EMBEDDINGS_EXPECTED_DIM: "768"
       EMBEDDINGS_STARTUP_ENABLED: "${EMBEDDINGS_STARTUP_ENABLED:-false}"
       EMBEDDINGS_STARTUP_BATCH_SIZE: "${EMBEDDINGS_STARTUP_BATCH_SIZE:-20}"
       EMBEDDINGS_STARTUP_MAX_BATCHES: "${EMBEDDINGS_STARTUP_MAX_BATCHES:-5}"
-
-      # === vector store datasource (pgvector DB) ===
-      VECTORSTORE_DATASOURCE_URL: jdbc:postgresql://postgres:5432/riskdb
-      VECTORSTORE_DATASOURCE_USERNAME: risk
-      VECTORSTORE_DATASOURCE_PASSWORD: dev
 
     ports:
       - "8083:8083"

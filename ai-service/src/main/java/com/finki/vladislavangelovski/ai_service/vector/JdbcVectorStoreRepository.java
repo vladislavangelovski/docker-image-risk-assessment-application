@@ -221,9 +221,9 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
         
         String sql = """
                     SELECT cve_id, title, epss, cvss_base,
-                           (embedding <-> ?::vector) AS distance
+                           1 - (embedding <=> ?::vector) AS similarity
                     FROM %s
-                    ORDER BY embedding <-> ?::vector
+                    ORDER BY embedding <=> ?::vector
                     LIMIT ?
                 """.formatted(table);
         
@@ -238,7 +238,7 @@ public class JdbcVectorStoreRepository implements VectorStoreRepository {
             
             return new SearchHit(
                     rs.getString("cve_id"),
-                    rs.getDouble("distance"),
+                    rs.getDouble("similarity"),
                     rs.getString("title"),
                     epss != null ? epss.doubleValue() : null,
                     cvss != null ? cvss.doubleValue() : null

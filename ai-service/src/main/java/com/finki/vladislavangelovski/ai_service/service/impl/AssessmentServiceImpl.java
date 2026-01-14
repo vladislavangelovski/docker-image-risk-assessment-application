@@ -196,7 +196,7 @@ public class AssessmentServiceImpl implements AssessmentService {
         // 4) Overall image score (weighted by epss^2) + band
         Map<String, Double> epssMap = topFindings.stream()
                 .collect(Collectors.toMap(TopFinding::cveId, TopFinding::epss, (a, b) -> a));
-        int overall = RiskScoring.overallImageScore(topFindings, epssMap);
+        int overall = RiskScoring.overallImageScore(topFindings, epssMap, wEpss, wCvss);
         RiskBand band = band(overall);
         
         List<Citation> citations = new ArrayList<>(topFindings.size());

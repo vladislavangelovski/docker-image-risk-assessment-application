@@ -24,7 +24,9 @@ public final class RiskScoring {
     }
     
     public static int overallImageScore(List<TopFinding> top,
-                                        Map<String, Double> epssByCve) {
+                                        Map<String, Double> epssByCve,
+                                        double wEpss,
+                                        double wCvss) {
         List<TopFinding> list = top.stream().limit(10).toList();
         double sum = 0.0;
         double denom = 0.0;
@@ -39,7 +41,7 @@ public final class RiskScoring {
         for (TopFinding f : list) {
             double epss = clamp01(epssByCve.getOrDefault(f.cveId(), 0.0));
             double w = epss * epss;
-            double sCve = 100.0 * (0.65 * epss + 0.35 * clamp01(f.cvss() / 10.0));
+            double sCve = 100.0 * (wEpss * epss + wCvss * clamp01(f.cvss() / 10.0));
             sum += (w / denom) * sCve;
         }
         return (int) Math.round(sum);
