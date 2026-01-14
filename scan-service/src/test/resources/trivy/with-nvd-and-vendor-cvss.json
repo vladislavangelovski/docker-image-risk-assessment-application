@@ -1,0 +1,28 @@
+{
+  "ArtifactName": "alpine:3.19",
+  "Results": [
+    {
+      "Target": "alpine:3.19 (os)",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-0301",
+          "PkgName": "musl",
+          "InstalledVersion": "1.2.4",
+          "FixedVersion": "1.2.5",
+          "Severity": "HIGH",
+          "SeveritySource": "nvd",
+          "CVSS": {
+            "nvd": {
+              "V3Score": 9.1,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+            },
+            "redhat": {
+              "V3Score": 7.8,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

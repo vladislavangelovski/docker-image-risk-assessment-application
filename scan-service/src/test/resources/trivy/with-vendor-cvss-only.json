@@ -1,0 +1,24 @@
+{
+  "ArtifactName": "alpine:3.19",
+  "Results": [
+    {
+      "Target": "alpine:3.19 (os)",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-0401",
+          "PkgName": "openssl",
+          "InstalledVersion": "3.1.0",
+          "FixedVersion": "3.1.1",
+          "Severity": "MEDIUM",
+          "SeveritySource": "redhat",
+          "CVSS": {
+            "redhat": {
+              "V3Score": 6.1,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
