@@ -3,13 +3,15 @@
 ## Current implementation (by service)
 - **cve-store-service**: Scheduled `IngestionJob` pulls recent NVD CVEs and daily EPSS CSV, upserting through the service layer with startup bootstrap support. Flyway manages schema for CVE/EPSS tables and an embeddings table. REST controllers expose paging, EPSS lookup, and save operations backed by JPA entities, repositories, and MapStruct mappers.
 - **scan-service**: `ScanController` offers synchronous scan submission and retrieval with raw/normalized options. `DefaultScanOrchestrator` drives Trivy via `ProcessTrivyInvoker`, normalizes output with `JacksonTrivyParser`, persists results with `JdbcScanPersistence`, and caches them in Redis (or in-memory fallback) using `ScanCache`.
-- **ai-service**: `AssessmentServiceImpl` calls the scan service to obtain findings, fetches CVE details via `CveStoreClient`, computes weighted risk scores, and returns top findings with citations and risk bands. It also hosts semantic search/QA endpoints backed by pgvector (`JdbcVectorStoreRepository`) and an embeddings client (Ollama by default). Web clients and configs are wired for downstream HTTP calls and AI chat defaults.
+- **ai-service**: `AssessmentServiceImpl` calls the scan service to obtain findings, fetches CVE details via `CveStoreClient`, computes weighted risk scores, and returns top findings with citations and risk bands. It also hosts semantic search/QA endpoints backed by pgvector (`JdbcVectorStoreRepository`) and an embeddings client (Ollama by default; quantized chat model configured for faster responses). Web clients and configs are wired for downstream HTTP calls and AI chat defaults.
 - **common**: Shared DTOs/models for CVE data, scan assessment payloads, QA responses, and MapStruct mappers to keep contracts consistent across services.
-- **gateway-service**: Spring Cloud Gateway routes for CVE/Scan/AI endpoints, request logging, CORS, and aggregated OpenAPI/Swagger UI.
-- **docker-compose**: Brings up Postgres with pgvector, Redis, Ollama, and all services with environment wiring; AI service targets scan and CVE endpoints over the compose network.
+- **gateway-service**: Spring Cloud Gateway routes for CVE/Scan/AI endpoints, request logging, CORS, and aggregated OpenAPI/Swagger UI. Authentication is currently disabled.
+- **frontend**: React + TypeScript + Vite + MUI UI that calls the gateway only; includes Dashboard, Assessment, QA, and CVE lookup screens.
+- **docker-compose**: Brings up Postgres with pgvector, Redis, Ollama, frontend, and all services with environment wiring; AI service targets scan and CVE endpoints over the compose network.
 
 ## Service wiring review
 - **Ollama connectivity**: The AI service now targets the `ollama` container on the compose network (previously pointed to `host.docker.internal`, which breaks on Linux hosts). Update local `.env`/deployments accordingly.
+- **Ollama performance**: Use a quantized chat model for responsive QA on CPU; first call may still be slower if the model needs to be pulled or warmed.
 - **Embeddings indexing**: Image-based QA/claim now auto-indexes missing CVE embeddings for CVEs found in the scanned image. Semantic-only queries (no `imageRef`) still benefit from pre-indexing via the admin endpoint.
 - **Dependencies**: Compose waits for Postgres before starting CVE Store/AI but only uses `service_started` for CVE Store and Scan Service; prefer health-based conditions (or retries) to avoid cold-start call failures.
 

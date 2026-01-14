@@ -83,7 +83,7 @@ Legend:
 - [x] Dockerfile for frontend (see `frontend/Dockerfile`)
 - [x] `docker-compose.yml` includes gateway, scan, cve-store, ai, Redis, PostgreSQL (see `docker-compose.yml`)
 - [x] `docker-compose.yml` includes frontend (see `docker-compose.yml`)
-- [ ] Validate end-to-end locally via UI + gateway (UI not present yet)
+- [x] Validate end-to-end locally via UI + gateway
 - [ ] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
 
 ## Phase 9 – CI/CD & Quality
@@ -94,7 +94,7 @@ Legend:
 - [x] JUnit 5 tests exist
 - [x] Testcontainers integration tests exist (see `cve-store-service/src/test/java/com/finki/vladislavangelovski/cve_store_service/api/CveEntryControllerIT.java`)
 - [ ] Service contract tests (gateway ↔ services)
-- [ ] Frontend CI (typecheck + build + UI smoke tests) (frontend not present yet)
+- [ ] Frontend CI (typecheck + build + UI smoke tests) (frontend exists; CI not added yet)
 - [ ] Compose-based smoke test for the full flow (no script/job yet)
 
 ## Phase 10 – Kubernetes Deployment

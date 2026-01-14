@@ -6,6 +6,7 @@ This project contains multiple microservices that together provide vulnerability
 - **scan-service:** Scans container images against stored CVE data
 - **ai-service:** Provides AI-powered analysis and recommendations
 - **gateway-service:** API gateway and routing for the other services
+- **frontend:** Web UI (talks to the gateway only)
 
 ## Architecture Overview
 - Services communicate over an internal Docker network
@@ -31,6 +32,7 @@ This project contains multiple microservices that together provide vulnerability
 - Docker & Docker Compose (v1.29+)
 - Java 21 (for local build/tests)
 - Maven 3.9+
+- Node.js + npm (only for local frontend development)
 
 ## Environment Variables
 Copy `.env-example` to `.env` in the repo root and fill it in:
@@ -42,6 +44,7 @@ VITE_API_BASE_URL=http://localhost:8080
 ```
 Notes:
 - `VITE_API_BASE_URL` is used by the frontend build to target the gateway.
+- Gateway authentication is currently disabled (no API key required).
 
 Optional (AI embeddings startup indexing):
 ```
@@ -73,6 +76,7 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
 QA note:
 - When you pass `imageRef`, the AI service will **auto-index missing CVE embeddings** for the CVEs found in that image scan (first request may take longer).
 - For semantic-only queries without an `imageRef`, you can pre-index using `POST /api/v1/admin/embeddings/index`.
+- The default Ollama chat model is configured in `ai-service/src/main/resources/application.yml`. First QA request can be slow if the model has to be pulled or is cold-starting.
 
 ## Running Tests
 ```
