@@ -105,7 +105,7 @@ Legend:
 - [x] `docker-compose.yml` includes gateway, scan, cve-store, ai, Redis, PostgreSQL (see `docker-compose.yml`)
 - [x] `docker-compose.yml` includes frontend (see `docker-compose.yml`)
 - [x] Validate end-to-end locally via UI + gateway
-- [ ] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
+- [x] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
 
 ## Phase 9 – CI/CD & Quality
 - [x] GitHub Actions: build → test (`mvn ... verify`) (see `.github/workflows/ci.yml`)

@@ -85,6 +85,18 @@ QA note:
 - For semantic-only queries without an `imageRef`, you can pre-index using `POST /api/v1/admin/embeddings/index`.
 - The default Ollama chat model is configured in `ai-service/src/main/resources/application.yml`. First QA request can be slow if the model has to be pulled or is cold-starting.
 
+## Dev seed data strategy
+Use a small, reproducible dataset for local demos instead of the full NVD/EPSS feed.
+
+- Reduce the CVE ingest window by lowering `ingest.nvd.lookback-days` in `cve-store-service/src/main/resources/application.yml`
+  (or override it via environment variables).
+- Trigger a one-off ingest through the gateway:
+  - `POST /api/v1/admin/ingestion/nvd`
+  - `POST /api/v1/admin/ingestion/epss`
+- Seed embeddings with a short CVE list (or let the AI service auto-index from an image scan):
+  - `POST /api/v1/admin/embeddings/index` with `{ "cveIds": ["CVE-2024-XXXX", "CVE-2025-YYYY"] }`
+- Use a small public image (e.g. `alpine:3.19`, `nginx:1.25`) to generate a scan and inspect it in the UI.
+
 ## Running Tests
 ```
 # Run all unit + integration tests
