@@ -6,6 +6,7 @@ import type {
   EmbeddingsIndexResponse,
   EmbeddingsSearchResponse,
   EpssScore,
+  GatewayHealthStatus,
   Page,
   QaClaimRequest,
   QaClaimResponse,
@@ -17,12 +18,45 @@ import type {
 
 const DEFAULT_API_BASE = "http://localhost:8080";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE;
+function normalizeBaseUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+}
 
-async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
+function getConfiguredApiBaseUrl(): string | undefined {
+  if (typeof window !== "undefined") {
+    const runtime = window.__RISK_CONSOLE_CONFIG__?.API_BASE_URL;
+    if (runtime) return normalizeBaseUrl(runtime);
+  }
+
+  const env = import.meta.env.VITE_API_BASE_URL;
+  if (env) return normalizeBaseUrl(env);
+
+  return undefined;
+}
+
+export const API_BASE_URL = getConfiguredApiBaseUrl() || DEFAULT_API_BASE;
+
+async function readJson<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
+}
+
+async function requestJson<T>(
+  path: string,
+  options: RequestInit = {},
+  config: { allowNonOk?: boolean } = {}
+): Promise<T> {
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -30,13 +64,13 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
     headers
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
+  if (!response.ok && !config.allowNonOk) {
+    const errorText = await response.text().catch(() => "");
     const suffix = errorText ? ` - ${errorText}` : "";
     throw new Error(`${response.status} ${response.statusText}${suffix}`);
   }
 
-  return (await response.json()) as T;
+  return await readJson<T>(response);
 }
 
 export const api = {
@@ -76,5 +110,6 @@ export const api = {
   embeddingsSearch: (query: string, k: number) =>
     requestJson<EmbeddingsSearchResponse>(
       `/api/v1/admin/embeddings/search?q=${encodeURIComponent(query)}&k=${k}`
-    )
+    ),
+  gatewayHealth: () => requestJson<GatewayHealthStatus>("/health", { method: "GET" }, { allowNonOk: true })
 };

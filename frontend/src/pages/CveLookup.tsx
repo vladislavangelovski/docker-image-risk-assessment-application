@@ -14,23 +14,35 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ArticleIcon from "@mui/icons-material/Article";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { CveEntry, EpssScore, Page } from "../api/types";
+import { PageHeader } from "../components/PageHeader";
 import { JsonPanel } from "../components/JsonPanel";
+import { Sparkline } from "../components/Sparkline";
+import { useRecentActivity } from "../hooks/useRecentActivity";
 
 export function CveLookup() {
-  const [cveId, setCveId] = React.useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [cveId, setCveId] = React.useState(searchParams.get("cveId") || "");
   const [lookupResult, setLookupResult] = React.useState<CveEntry | null>(null);
   const [epssScores, setEpssScores] = React.useState<EpssScore[]>([]);
   const [lookupError, setLookupError] = React.useState<string | null>(null);
   const [lookupLoading, setLookupLoading] = React.useState(false);
   const [showRaw, setShowRaw] = React.useState(false);
+  const { addActivity } = useRecentActivity();
 
   const [pageData, setPageData] = React.useState<Page<CveEntry> | null>(null);
   const [pageError, setPageError] = React.useState<string | null>(null);
   const [pageLoading, setPageLoading] = React.useState(false);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState("10");
+
+  React.useEffect(() => {
+    setCveId(searchParams.get("cveId") || "");
+  }, [searchParams]);
 
   const loadPage = React.useCallback(async () => {
     setPageLoading(true);
@@ -52,19 +64,29 @@ export function CveLookup() {
     loadPage();
   }, [loadPage]);
 
-  const handleLookup = async () => {
-    if (!cveId.trim()) {
+  const lookupById = React.useCallback(async (id: string) => {
+    if (!id.trim()) {
       setLookupError("CVE id is required.");
       return;
     }
     setLookupError(null);
     setLookupLoading(true);
     try {
-      const id = cveId.trim();
       const cve = await api.cveById(id);
       const epss = await api.cveEpss(id, 5);
       setLookupResult(cve);
       setEpssScores(epss);
+      if (searchParams.get("cveId") !== id) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("cveId", id);
+        setSearchParams(nextParams, { replace: true });
+      }
+      addActivity({
+        kind: "CVE_LOOKUP",
+        label: id,
+        description: cve.cvssSeverity ? `Severity: ${cve.cvssSeverity}` : "CVE lookup",
+        href: `/cves?cveId=${encodeURIComponent(id)}`
+      });
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : "Lookup failed");
       setLookupResult(null);
@@ -72,20 +94,39 @@ export function CveLookup() {
     } finally {
       setLookupLoading(false);
     }
-  };
+  }, [addActivity, searchParams, setSearchParams]);
+
+  const handleLookup = async () => lookupById(cveId.trim());
+
+  const epssSeries = React.useMemo(() => {
+    const withTime = epssScores
+      .filter((score) => typeof score.score === "number")
+      .map((score) => ({
+        score: score.score as number,
+        time: score.retrievedAt ? Date.parse(score.retrievedAt) : NaN
+      }))
+      .sort((a, b) => (Number.isFinite(a.time) && Number.isFinite(b.time) ? a.time - b.time : 0));
+
+    return withTime.map((item) => item.score);
+  }, [epssScores]);
+
+  React.useEffect(() => {
+    const fromUrl = searchParams.get("cveId");
+    if (fromUrl && fromUrl !== lookupResult?.cveId && !lookupLoading) {
+      void lookupById(fromUrl);
+    }
+  }, [lookupById, lookupLoading, lookupResult?.cveId, searchParams]);
 
   return (
     <Stack spacing={3}>
-      <Paper className="section-card stagger-in" style={{ "--delay": 0 } as React.CSSProperties}>
+      <PageHeader
+        title="CVE Lookup"
+        subtitle="Fetch CVE metadata, CVSS details, references, and the latest EPSS scores."
+        icon={<BugReportRoundedIcon sx={{ color: "var(--mint-500)" }} />}
+      />
+
+      <Paper className="section-card">
         <Stack spacing={2} sx={{ p: 3 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <SearchIcon sx={{ color: "var(--mint-500)" }} />
-            <Typography variant="h5">CVE Lookup</Typography>
-          </Stack>
-          <Typography color="text.secondary">
-            Fetch CVE metadata, CVSS vectors, and the latest EPSS scores directly from the
-            CVE store.
-          </Typography>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
@@ -97,12 +138,12 @@ export function CveLookup() {
               />
             </Grid>
             <Grid item xs={12} md={3}>
-              <Button variant="contained" onClick={handleLookup} disabled={lookupLoading}>
-                {lookupLoading ? "Searching..." : "Fetch CVE"}
+              <Button variant="contained" onClick={handleLookup} disabled={lookupLoading} startIcon={<SearchIcon />}>
+                {lookupLoading ? "Searching…" : "Fetch CVE"}
               </Button>
             </Grid>
             <Grid item xs={12} md={3}>
-              <Button variant="outlined" size="small" onClick={() => setShowRaw(!showRaw)}>
+              <Button variant="outlined" size="small" onClick={() => setShowRaw(!showRaw)} disabled={!lookupResult}>
                 {showRaw ? "Hide raw JSON" : "Show raw JSON"}
               </Button>
             </Grid>
@@ -112,16 +153,30 @@ export function CveLookup() {
       </Paper>
 
       {lookupResult && (
-        <Paper className="section-card stagger-in" style={{ "--delay": 1 } as React.CSSProperties}>
+        <Paper className="section-card">
           <Stack spacing={2} sx={{ p: 3 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <ArticleIcon sx={{ color: "var(--amber-500)" }} />
-              <Typography variant="h6">{lookupResult.cveId}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 750 }}>
+                {lookupResult.cveId}
+              </Typography>
               {lookupResult.cvssSeverity && (
                 <Chip label={lookupResult.cvssSeverity} color="warning" variant="outlined" />
               )}
               {lookupResult.epssScore !== undefined && (
                 <Chip label={`EPSS ${lookupResult.epssScore}`} variant="outlined" />
+              )}
+              {lookupResult.cveId && (
+                <Button
+                  size="small"
+                  variant="text"
+                  href={`https://nvd.nist.gov/vuln/detail/${lookupResult.cveId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  endIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                >
+                  NVD
+                </Button>
               )}
             </Stack>
             <Typography color="text.secondary">{lookupResult.description}</Typography>
@@ -173,7 +228,7 @@ export function CveLookup() {
             {(lookupResult.references || []).length > 0 && (
               <Stack spacing={1}>
                 <Typography variant="subtitle2">References</Typography>
-                <Stack spacing={1}>
+                <Stack spacing={1} sx={{ maxHeight: 200, overflow: "auto", pr: 1 }}>
                   {(lookupResult.references || []).map((ref, index) => (
                     <Link
                       key={`${ref.url}-${index}`}
@@ -183,7 +238,12 @@ export function CveLookup() {
                       underline="hover"
                       color="inherit"
                     >
-                      {ref.url}
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
+                          {ref.url}
+                        </Typography>
+                        <OpenInNewRoundedIcon sx={{ fontSize: 14, opacity: 0.7 }} />
+                      </Stack>
                     </Link>
                   ))}
                 </Stack>
@@ -192,6 +252,14 @@ export function CveLookup() {
             <Divider />
             <Stack spacing={1}>
               <Typography variant="subtitle2">Latest EPSS scores</Typography>
+              {epssSeries.length > 1 && (
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Sparkline values={epssSeries} color="var(--mint-500)" />
+                  <Typography variant="caption" color="text.secondary">
+                    Trend of retrieved EPSS scores (higher is more exploitable).
+                  </Typography>
+                </Stack>
+              )}
               <Stack spacing={1}>
                 {epssScores.map((score) => (
                   <Paper key={score.id} sx={{ p: 2, borderRadius: 3 }}>
@@ -209,12 +277,12 @@ export function CveLookup() {
                 )}
               </Stack>
             </Stack>
-            {showRaw && <JsonPanel data={{ cve: lookupResult, epss: epssScores }} />}
+            {showRaw && <JsonPanel title="CVE payload" data={{ cve: lookupResult, epss: epssScores }} />}
           </Stack>
         </Paper>
       )}
 
-      <Paper className="section-card stagger-in" style={{ "--delay": 2 } as React.CSSProperties}>
+      <Paper className="section-card">
         <Stack spacing={2} sx={{ p: 3 }}>
           <Typography variant="h6">Browse CVE entries</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
@@ -267,6 +335,17 @@ export function CveLookup() {
                       <Chip label={`EPSS ${entry.epssScore}`} size="small" variant="outlined" />
                     )}
                   </Stack>
+                  <Box>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => entry.cveId && lookupById(entry.cveId)}
+                      startIcon={<SearchIcon />}
+                      disabled={!entry.cveId}
+                    >
+                      View details
+                    </Button>
+                  </Box>
                 </Stack>
               </Paper>
             ))}

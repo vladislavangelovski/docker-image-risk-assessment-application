@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Grid,
   Paper,
   Stack,
@@ -11,12 +12,15 @@ import {
 } from "@mui/material";
 import MemoryIcon from "@mui/icons-material/Memory";
 import SearchIcon from "@mui/icons-material/Search";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { api } from "../api/client";
 import type {
   EmbeddingsIndexResponse,
   EmbeddingsSearchResponse
 } from "../api/types";
+import { PageHeader } from "../components/PageHeader";
 import { JsonPanel } from "../components/JsonPanel";
+import { useRecentActivity } from "../hooks/useRecentActivity";
 
 export function AdminEmbeddings() {
   const [cveIds, setCveIds] = React.useState("");
@@ -26,6 +30,7 @@ export function AdminEmbeddings() {
   const [searchResult, setSearchResult] = React.useState<EmbeddingsSearchResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { addActivity } = useRecentActivity();
 
   const parseIds = () =>
     cveIds
@@ -41,6 +46,12 @@ export function AdminEmbeddings() {
       const payload = ids.length ? { cveIds: ids } : {};
       const data = await api.embeddingsIndex(payload);
       setIndexResult(data);
+      addActivity({
+        kind: "EMBEDDINGS_INDEX",
+        label: "Embeddings index",
+        description: ids.length ? `${ids.length} CVEs` : "Auto selection",
+        href: "/admin/embeddings"
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Index request failed.");
     } finally {
@@ -61,6 +72,12 @@ export function AdminEmbeddings() {
       const k = trimmedK && Number.isFinite(kParsed) ? kParsed : 5;
       const data = await api.embeddingsSearch(query.trim(), k);
       setSearchResult(data);
+      addActivity({
+        kind: "EMBEDDINGS_SEARCH",
+        label: "Embeddings search",
+        description: query.trim(),
+        href: "/admin/embeddings"
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search request failed.");
     } finally {
@@ -70,14 +87,21 @@ export function AdminEmbeddings() {
 
   return (
     <Stack spacing={3}>
-      <Paper className="section-card stagger-in" style={{ "--delay": 0 } as React.CSSProperties}>
+      <PageHeader
+        title="Embeddings Admin"
+        subtitle="Index CVE embeddings and validate semantic retrieval quality."
+        icon={<MemoryIcon sx={{ color: "var(--mint-500)" }} />}
+      />
+
+      <Alert severity="warning">
+        Admin tools are intended for controlled environments. Avoid exposing these routes
+        without authentication in production.
+      </Alert>
+
+      <Paper className="section-card">
         <Stack spacing={2} sx={{ p: 3 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <MemoryIcon sx={{ color: "var(--mint-500)" }} />
-            <Typography variant="h5">Embeddings Admin</Typography>
-          </Stack>
-          <Typography color="text.secondary">
-            Manage embedding indexing batches and perform semantic search checks.
+          <Typography variant="h6" sx={{ fontWeight: 750 }}>
+            Index embeddings
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} md={8}>
@@ -92,14 +116,23 @@ export function AdminEmbeddings() {
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <Button variant="contained" onClick={handleIndex} disabled={loading}>
-                {loading ? "Indexing..." : "Run index job"}
+              <Button
+                variant="contained"
+                onClick={handleIndex}
+                disabled={loading}
+                startIcon={<RocketLaunchIcon />}
+                endIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
+              >
+                {loading ? "Indexing…" : "Run index job"}
               </Button>
               {indexResult && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Indexed: {indexResult.upserted} / Requested: {indexResult.requested}
                   </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <JsonPanel title="Index response" data={indexResult} />
+                  </Box>
                 </Box>
               )}
             </Grid>
@@ -107,7 +140,7 @@ export function AdminEmbeddings() {
         </Stack>
       </Paper>
 
-      <Paper className="section-card stagger-in" style={{ "--delay": 1 } as React.CSSProperties}>
+      <Paper className="section-card">
         <Stack spacing={2} sx={{ p: 3 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <SearchIcon sx={{ color: "var(--amber-500)" }} />
@@ -133,15 +166,20 @@ export function AdminEmbeddings() {
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <Button variant="outlined" onClick={handleSearch} disabled={loading}>
-                Run search
+              <Button
+                variant="outlined"
+                onClick={handleSearch}
+                disabled={loading}
+                endIcon={loading ? <CircularProgress size={18} /> : undefined}
+              >
+                {loading ? "Searching…" : "Run search"}
               </Button>
             </Grid>
           </Grid>
           {searchResult && (
             <Box>
               <Typography variant="subtitle1">Matches</Typography>
-              <JsonPanel data={searchResult} />
+              <JsonPanel title="Search response" data={searchResult} />
             </Box>
           )}
           {error && <Alert severity="error">{error}</Alert>}

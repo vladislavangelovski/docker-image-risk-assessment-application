@@ -1,37 +1,43 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Box, Container, Typography } from "@mui/material";
-import { AppHeader } from "./components/AppHeader";
-import { Dashboard } from "./pages/Dashboard";
-import { ImageAssessment } from "./pages/ImageAssessment";
-import { QaCenter } from "./pages/QaCenter";
-import { CveLookup } from "./pages/CveLookup";
-import { ScanViewer } from "./pages/ScanViewer";
-import { AdminEmbeddings } from "./pages/AdminEmbeddings";
+import { AppShell } from "./components/AppShell";
+
+const Dashboard = React.lazy(() =>
+  import("./pages/Dashboard").then((module) => ({ default: module.Dashboard }))
+);
+const ImageAssessment = React.lazy(() =>
+  import("./pages/ImageAssessment").then((module) => ({ default: module.ImageAssessment }))
+);
+const QaCenter = React.lazy(() =>
+  import("./pages/QaCenter").then((module) => ({ default: module.QaCenter }))
+);
+const CveLookup = React.lazy(() =>
+  import("./pages/CveLookup").then((module) => ({ default: module.CveLookup }))
+);
+const ScanViewer = React.lazy(() =>
+  import("./pages/ScanViewer").then((module) => ({ default: module.ScanViewer }))
+);
+const AdminEmbeddings = React.lazy(() =>
+  import("./pages/AdminEmbeddings").then((module) => ({ default: module.AdminEmbeddings }))
+);
+const NotFound = React.lazy(() =>
+  import("./pages/NotFound").then((module) => ({ default: module.NotFound }))
+);
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AppHeader />
-      <Box className="app-shell">
-        <Container maxWidth="lg">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/assess" element={<ImageAssessment />} />
-            <Route path="/qa" element={<QaCenter />} />
-            <Route path="/cves" element={<CveLookup />} />
-            <Route path="/scans" element={<ScanViewer />} />
-            <Route path="/admin/embeddings" element={<AdminEmbeddings />} />
-          </Routes>
-        </Container>
-      </Box>
-      <Box component="footer" sx={{ pb: 4 }}>
-        <Container maxWidth="lg">
-          <Typography variant="caption" color="text.secondary">
-            Gateway-only frontend. Configure VITE_API_BASE_URL in the frontend environment or .env.
-          </Typography>
-        </Container>
-      </Box>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/assess" element={<ImageAssessment />} />
+          <Route path="/qa" element={<QaCenter />} />
+          <Route path="/cves" element={<CveLookup />} />
+          <Route path="/scans" element={<ScanViewer />} />
+          <Route path="/admin/embeddings" element={<AdminEmbeddings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }

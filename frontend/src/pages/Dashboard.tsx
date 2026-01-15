@@ -1,10 +1,12 @@
 import React from "react";
 import {
+  Alert,
   Box,
   Button,
   Chip,
   Grid,
   Paper,
+  Skeleton,
   Stack,
   Typography
 } from "@mui/material";
@@ -12,156 +14,338 @@ import { Link } from "react-router-dom";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import SearchIcon from "@mui/icons-material/Search";
 import PsychologyIcon from "@mui/icons-material/Psychology";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import HealthAndSafetyRoundedIcon from "@mui/icons-material/HealthAndSafetyRounded";
+import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
+import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
+import { PageHeader } from "../components/PageHeader";
+import { api } from "../api/client";
+import type { GatewayHealthStatus, Page as PageResponse, CveEntry } from "../api/types";
+import { useRecentActivity } from "../hooks/useRecentActivity";
+import { formatRelativeTime } from "../utils/time";
 
 export function Dashboard() {
-  const highlights = [
-    "Gateway-first API access",
-    "Trivy-backed image scanning",
-    "CVE + EPSS enrichment",
-    "RAG summaries with citations"
-  ];
+  const { items, clearActivity } = useRecentActivity();
+  const [health, setHealth] = React.useState<GatewayHealthStatus | null>(null);
+  const [healthError, setHealthError] = React.useState<string | null>(null);
+  const [healthLoading, setHealthLoading] = React.useState(true);
+
+  const [cveSummary, setCveSummary] = React.useState<PageResponse<CveEntry> | null>(null);
+  const [cveError, setCveError] = React.useState<string | null>(null);
+  const [cveLoading, setCveLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setHealthLoading(true);
+      setCveLoading(true);
+      setHealthError(null);
+      setCveError(null);
+
+      const [healthResult, cveResult] = await Promise.allSettled([
+        api.gatewayHealth(),
+        api.cveList(0, 1)
+      ]);
+
+      if (cancelled) return;
+
+      if (healthResult.status === "fulfilled") {
+        setHealth(healthResult.value);
+      } else {
+        setHealthError(healthResult.reason instanceof Error ? healthResult.reason.message : "Health check failed");
+      }
+      setHealthLoading(false);
+
+      if (cveResult.status === "fulfilled") {
+        setCveSummary(cveResult.value);
+      } else {
+        setCveError(cveResult.reason instanceof Error ? cveResult.reason.message : "Failed to load CVE stats");
+      }
+      setCveLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const statusColor = (status?: string) => {
+    if (!status) return "default";
+    const normalized = status.toUpperCase();
+    if (normalized === "UP") return "success";
+    if (normalized === "DEGRADED") return "warning";
+    return "error";
+  };
+
+  const activityIcon = (kind: string) => {
+    switch (kind) {
+      case "ASSESS_IMAGE":
+        return <ShieldRoundedIcon />;
+      case "QA_QUESTION":
+        return <PsychologyIcon />;
+      case "QA_CLAIM":
+        return <FactCheckRoundedIcon />;
+      case "CVE_LOOKUP":
+        return <BugReportRoundedIcon />;
+      case "SCAN_VIEW":
+        return <ReceiptLongRoundedIcon />;
+      default:
+        return <MemoryRoundedIcon />;
+    }
+  };
 
   return (
     <Stack spacing={4}>
-      <Paper className="hero-card stagger-in" style={{ "--delay": 0 } as React.CSSProperties}>
-        <Stack spacing={2}>
-          <Typography variant="h3">Modern risk intelligence for container images.</Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Investigate vulnerable packages, understand exploitability signals, and ask
-            semantic questions without leaving the gateway.
-          </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Operational status, demo shortcuts, and recently viewed items."
+        icon={<DashboardRoundedIcon sx={{ color: "var(--mint-500)" }} />}
+        actions={
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
             <Button
               variant="contained"
-              size="large"
               startIcon={<RocketLaunchIcon />}
               component={Link}
               to="/assess"
             >
-              Assess an Image
+              New assessment
             </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<PsychologyIcon />}
-              component={Link}
-              to="/qa"
-            >
-              Ask a Question
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<SearchIcon />}
-              component={Link}
-              to="/cves"
-            >
-              Lookup a CVE
+            <Button variant="outlined" startIcon={<PsychologyIcon />} component={Link} to="/qa">
+              New question
             </Button>
           </Stack>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            {highlights.map((item) => (
-              <Chip key={item} label={item} variant="outlined" />
-            ))}
-          </Stack>
-        </Stack>
-      </Paper>
+        }
+      />
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6} lg={4}>
+          <Paper className="section-card" sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <HealthAndSafetyRoundedIcon sx={{ color: "var(--mint-500)" }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  Platform health
+                </Typography>
+              </Stack>
+              {healthLoading ? (
+                <Stack spacing={1}>
+                  <Skeleton height={28} width="60%" />
+                  <Skeleton height={18} width="85%" />
+                  <Skeleton height={18} width="75%" />
+                </Stack>
+              ) : healthError ? (
+                <Alert severity="warning">{healthError}</Alert>
+              ) : (
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Chip
+                      label={`Gateway: ${health?.status || "UNKNOWN"}`}
+                      color={statusColor(health?.status)}
+                      size="small"
+                    />
+                    <Chip label="Live checks" variant="outlined" size="small" />
+                  </Stack>
+                  <Stack spacing={1}>
+                    {Object.entries(health?.dependencies || {}).map(([name, dep]) => (
+                      <Stack
+                        key={name}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {dep.name || name}
+                        </Typography>
+                        <Chip
+                          label={dep.status || "UNKNOWN"}
+                          color={statusColor(dep.status)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Stack>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6} lg={4}>
+          <Paper className="section-card" sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <BugReportRoundedIcon sx={{ color: "var(--amber-500)" }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  CVE inventory
+                </Typography>
+              </Stack>
+              {cveLoading ? (
+                <Stack spacing={1}>
+                  <Skeleton height={44} width="70%" />
+                  <Skeleton height={18} width="85%" />
+                </Stack>
+              ) : cveError ? (
+                <Alert severity="warning">{cveError}</Alert>
+              ) : (
+                <Stack spacing={1}>
+                  <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                    {cveSummary?.totalElements?.toLocaleString() ?? "—"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total CVE entries currently available for lookups and enrichment.
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Chip label={`${cveSummary?.totalPages ?? "—"} pages`} size="small" variant="outlined" />
+                    <Chip label={`Page size: ${cveSummary?.size ?? "—"}`} size="small" variant="outlined" />
+                  </Stack>
+                </Stack>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={4}>
+          <Paper className="section-card" sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ReceiptLongRoundedIcon sx={{ color: "var(--mint-500)" }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  Demo shortcuts
+                </Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                Pre-filled routes for quick walk-throughs and repeatable demos.
+              </Typography>
+              <Stack spacing={1}>
+                <Button
+                  variant="outlined"
+                  startIcon={<ShieldRoundedIcon />}
+                  component={Link}
+                  to="/assess?imageRef=nginx%3A1.25&k=6"
+                >
+                  Assess nginx:1.25
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PsychologyIcon />}
+                  component={Link}
+                  to="/qa?tab=question&imageRef=nginx%3A1.25&k=4"
+                >
+                  Ask: most exploitable findings
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<SearchIcon />}
+                  component={Link}
+                  to="/cves?cveId=CVE-2021-44228"
+                >
+                  Lookup CVE-2021-44228
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper
-            className="section-card stagger-in"
-            style={{ "--delay": 1 } as React.CSSProperties}
-            sx={{ p: 3 }}
-          >
-            <Stack spacing={2}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <ShieldOutlinedIcon sx={{ color: "var(--mint-500)" }} />
-                <Typography variant="h6">Core workflow</Typography>
-              </Stack>
-              <Typography color="text.secondary">
-                Scan images, enrich with CVE + EPSS intel, then ask direct questions on the
-                evidence returned by the AI service.
+          <Paper className="hero-card" sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              <Typography variant="h5" sx={{ fontWeight: 750 }}>
+                Explore risk with confidence.
               </Typography>
-              <Stack spacing={1}>
-                {[
-                  "1. Submit image reference",
-                  "2. Normalize scan findings",
-                  "3. Enrich with CVE + EPSS",
-                  "4. Score risk + cite evidence"
-                ].map((step) => (
-                  <Typography key={step} variant="body2">
-                    {step}
-                  </Typography>
+              <Typography color="text.secondary">
+                Assess images, inspect scans, and ask evidence-backed questions. Every screen
+                keeps an audit trail with raw JSON payloads for verification.
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <Button variant="contained" startIcon={<RocketLaunchIcon />} component={Link} to="/assess">
+                  Assess an image
+                </Button>
+                <Button variant="outlined" startIcon={<SearchIcon />} component={Link} to="/cves">
+                  Browse CVEs
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {["Risk bands", "CVE + EPSS enrichment", "Citations", "Raw JSON audit"].map((item) => (
+                  <Chip key={item} label={item} variant="outlined" size="small" />
                 ))}
               </Stack>
             </Stack>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>
-          <Paper
-            className="section-card stagger-in"
-            style={{ "--delay": 2 } as React.CSSProperties}
-            sx={{ p: 3 }}
-          >
-            <Stack spacing={2}>
-              <Typography variant="h6">Operational reminders</Typography>
-              <Typography color="text.secondary">
-                Keep requests scoped to the gateway endpoint only. The UI never calls
-                services directly.
+          <Paper className="section-card" sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              <Typography variant="h6" sx={{ fontWeight: 750 }}>
+                Recent activity
               </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <Chip label="Gateway-only" color="success" />
-                <Chip label="Raw JSON available" variant="outlined" />
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                Tip: provide an image reference with QA prompts to auto-index missing
-                embeddings for faster semantic answers.
-              </Typography>
+              {items.length === 0 ? (
+                <Typography color="text.secondary" variant="body2">
+                  No recent activity yet. Start with an image assessment or a CVE lookup.
+                </Typography>
+              ) : (
+                <Stack spacing={1}>
+                  {items.slice(0, 6).map((item) => (
+                    <Paper
+                      key={item.id}
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 3,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 2
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 3,
+                            display: "grid",
+                            placeItems: "center",
+                            backgroundColor: "rgba(30, 168, 150, 0.12)"
+                          }}
+                        >
+                          {activityIcon(item.kind)}
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            {item.label}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.description ? `${item.description} • ` : ""}
+                            {formatRelativeTime(item.timestamp)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Button variant="outlined" size="small" component={Link} to={item.href}>
+                        Open
+                      </Button>
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
+              {items.length > 0 && (
+                <Box>
+                  <Button variant="text" size="small" onClick={clearActivity}>
+                    Clear history
+                  </Button>
+                </Box>
+              )}
             </Stack>
           </Paper>
         </Grid>
       </Grid>
-
-      <Paper
-        className="section-card stagger-in"
-        style={{ "--delay": 3 } as React.CSSProperties}
-        sx={{ p: 3 }}
-      >
-        <Stack spacing={2}>
-          <Typography variant="h6">Suggested test prompts</Typography>
-          <Typography color="text.secondary">
-            Try these after your stack is running to validate the end-to-end flow.
-          </Typography>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-              gap: 2
-            }}
-          >
-            <Paper sx={{ p: 2, borderRadius: 3 }}>
-              <Typography variant="subtitle2">Assess</Typography>
-              <Typography variant="body2" color="text.secondary">
-                imageRef: <strong>nginx:1.25</strong>
-              </Typography>
-            </Paper>
-            <Paper sx={{ p: 2, borderRadius: 3 }}>
-              <Typography variant="subtitle2">Question</Typography>
-              <Typography variant="body2" color="text.secondary">
-                "Which findings are most exploitable in this image?"
-              </Typography>
-            </Paper>
-            <Paper sx={{ p: 2, borderRadius: 3 }}>
-              <Typography variant="subtitle2">CVE</Typography>
-              <Typography variant="body2" color="text.secondary">
-                CVE-2021-44228
-              </Typography>
-            </Paper>
-          </Box>
-        </Stack>
-      </Paper>
     </Stack>
   );
 }
