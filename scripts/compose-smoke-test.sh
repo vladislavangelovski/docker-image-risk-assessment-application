@@ -9,9 +9,22 @@ export INGEST_STARTUP_ENABLED
 
 cleanup() {
   docker compose down -v --remove-orphans
+  if [[ -f .env.ci.generated ]]; then
+    rm -f .env
+    rm -f .env.ci.generated
+  fi
 }
 
 trap cleanup EXIT
+
+if [[ ! -f .env ]]; then
+  cat > .env <<'EOF'
+POSTGRES_USER=risk
+POSTGRES_PASSWORD=risk
+POSTGRES_DB=riskdb
+EOF
+  touch .env.ci.generated
+fi
 
 echo "Starting compose stack..."
 docker compose up -d --build
