@@ -36,6 +36,10 @@ spring:
           uri: ${services.cve-store-base-url}
           predicates:
             - Path=/api/v1/cves/**
+        - id: cve-store-ingestion-admin
+          uri: ${services.cve-store-base-url}
+          predicates:
+            - Path=/api/v1/admin/ingestion/**
         # ai-service (Assessment)
         - id: ai-service-assess
           uri: ${services.ai-base-url}
