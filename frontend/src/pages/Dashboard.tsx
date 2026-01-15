@@ -15,7 +15,6 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import SearchIcon from "@mui/icons-material/Search";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import HealthAndSafetyRoundedIcon from "@mui/icons-material/HealthAndSafetyRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
@@ -23,15 +22,12 @@ import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
 import { PageHeader } from "../components/PageHeader";
 import { api } from "../api/client";
-import type { GatewayHealthStatus, Page as PageResponse, CveEntry } from "../api/types";
+import type { Page as PageResponse, CveEntry } from "../api/types";
 import { useRecentActivity } from "../hooks/useRecentActivity";
 import { formatRelativeTime } from "../utils/time";
 
 export function Dashboard() {
   const { items, clearActivity } = useRecentActivity();
-  const [health, setHealth] = React.useState<GatewayHealthStatus | null>(null);
-  const [healthError, setHealthError] = React.useState<string | null>(null);
-  const [healthLoading, setHealthLoading] = React.useState(true);
 
   const [cveSummary, setCveSummary] = React.useState<PageResponse<CveEntry> | null>(null);
   const [cveError, setCveError] = React.useState<string | null>(null);
@@ -41,29 +37,21 @@ export function Dashboard() {
     let cancelled = false;
 
     (async () => {
-      setHealthLoading(true);
       setCveLoading(true);
-      setHealthError(null);
       setCveError(null);
 
-      const [healthResult, cveResult] = await Promise.allSettled([
-        api.gatewayHealth(),
-        api.cveList(0, 1)
-      ]);
+      const cveResult = await Promise.allSettled([api.cveList(0, 1)]);
 
       if (cancelled) return;
 
-      if (healthResult.status === "fulfilled") {
-        setHealth(healthResult.value);
+      if (cveResult[0].status === "fulfilled") {
+        setCveSummary(cveResult[0].value);
       } else {
-        setHealthError(healthResult.reason instanceof Error ? healthResult.reason.message : "Health check failed");
-      }
-      setHealthLoading(false);
-
-      if (cveResult.status === "fulfilled") {
-        setCveSummary(cveResult.value);
-      } else {
-        setCveError(cveResult.reason instanceof Error ? cveResult.reason.message : "Failed to load CVE stats");
+        setCveError(
+          cveResult[0].reason instanceof Error
+            ? cveResult[0].reason.message
+            : "Failed to load CVE stats"
+        );
       }
       setCveLoading(false);
     })();
@@ -72,14 +60,6 @@ export function Dashboard() {
       cancelled = true;
     };
   }, []);
-
-  const statusColor = (status?: string) => {
-    if (!status) return "default";
-    const normalized = status.toUpperCase();
-    if (normalized === "UP") return "success";
-    if (normalized === "DEGRADED") return "warning";
-    return "error";
-  };
 
   const activityIcon = (kind: string) => {
     switch (kind) {
@@ -102,7 +82,7 @@ export function Dashboard() {
     <Stack spacing={4}>
       <PageHeader
         title="Dashboard"
-        subtitle="Operational status, demo shortcuts, and recently viewed items."
+        subtitle="Demo shortcuts, inventory stats, and recently viewed items."
         icon={<DashboardRoundedIcon sx={{ color: "var(--mint-500)" }} />}
         actions={
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
@@ -122,61 +102,7 @@ export function Dashboard() {
       />
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6} lg={4}>
-          <Paper className="section-card" sx={{ p: 3 }}>
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <HealthAndSafetyRoundedIcon sx={{ color: "var(--mint-500)" }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  Platform health
-                </Typography>
-              </Stack>
-              {healthLoading ? (
-                <Stack spacing={1}>
-                  <Skeleton height={28} width="60%" />
-                  <Skeleton height={18} width="85%" />
-                  <Skeleton height={18} width="75%" />
-                </Stack>
-              ) : healthError ? (
-                <Alert severity="warning">{healthError}</Alert>
-              ) : (
-                <Stack spacing={1}>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                    <Chip
-                      label={`Gateway: ${health?.status || "UNKNOWN"}`}
-                      color={statusColor(health?.status)}
-                      size="small"
-                    />
-                    <Chip label="Live checks" variant="outlined" size="small" />
-                  </Stack>
-                  <Stack spacing={1}>
-                    {Object.entries(health?.dependencies || {}).map(([name, dep]) => (
-                      <Stack
-                        key={name}
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        justifyContent="space-between"
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {dep.name || name}
-                        </Typography>
-                        <Chip
-                          label={dep.status || "UNKNOWN"}
-                          color={statusColor(dep.status)}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Stack>
-              )}
-            </Stack>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6} lg={4}>
+        <Grid item xs={12} md={6} lg={6}>
           <Paper className="section-card" sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1} alignItems="center">
@@ -191,7 +117,9 @@ export function Dashboard() {
                   <Skeleton height={18} width="85%" />
                 </Stack>
               ) : cveError ? (
-                <Alert severity="warning">{cveError}</Alert>
+                <Alert severity="warning" sx={{ borderRadius: 3 }}>
+                  {cveError}
+                </Alert>
               ) : (
                 <Stack spacing={1}>
                   <Typography variant="h4" sx={{ fontWeight: 800 }}>
@@ -210,7 +138,7 @@ export function Dashboard() {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={6} lg={6}>
           <Paper className="section-card" sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1} alignItems="center">

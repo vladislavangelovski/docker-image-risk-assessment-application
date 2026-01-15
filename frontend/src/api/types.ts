@@ -178,13 +178,3 @@ export interface EmbeddingsSearchHit {
 export interface EmbeddingsSearchResponse {
   items?: EmbeddingsSearchHit[];
 }
-
-export interface DependencyHealth {
-  name?: string;
-  status?: string;
-}
-
-export interface GatewayHealthStatus {
-  status?: string;
-  dependencies?: Record<string, DependencyHealth>;
-}

@@ -6,7 +6,6 @@ import type {
   EmbeddingsIndexResponse,
   EmbeddingsSearchResponse,
   EpssScore,
-  GatewayHealthStatus,
   Page,
   QaClaimRequest,
   QaClaimResponse,
@@ -59,10 +58,15 @@ async function requestJson<T>(
     headers.set("Accept", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch {
+    throw new Error("Unable to reach the backend API. Check that the gateway is running.");
+  }
 
   if (!response.ok && !config.allowNonOk) {
     const errorText = await response.text().catch(() => "");
@@ -110,6 +114,5 @@ export const api = {
   embeddingsSearch: (query: string, k: number) =>
     requestJson<EmbeddingsSearchResponse>(
       `/api/v1/admin/embeddings/search?q=${encodeURIComponent(query)}&k=${k}`
-    ),
-  gatewayHealth: () => requestJson<GatewayHealthStatus>("/health", { method: "GET" }, { allowNonOk: true })
+    )
 };
