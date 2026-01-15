@@ -46,13 +46,14 @@ jobs:
         run: mvn -B -ntp spotless:check
 
   dependency-check:
-    if: ${{ secrets.NVD_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     defaults:
       run:
         shell: bash
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,7 +72,12 @@ jobs:
           path: ~/.m2/repository
 
       - name: OWASP dependency check
-        run: mvn -B -ntp -DskipTests -Dnvd.api.key=${{ secrets.NVD_API_KEY }} org.owasp:dependency-check-maven:check
+        if: ${{ env.NVD_API_KEY != '' }}
+        run: mvn -B -ntp -DskipTests -Dnvd.api.key=${{ env.NVD_API_KEY }} org.owasp:dependency-check-maven:check
+
+      - name: Skip dependency check (missing NVD_API_KEY)
+        if: ${{ env.NVD_API_KEY == '' }}
+        run: echo "Skipping OWASP dependency check; NVD_API_KEY is not set."
 
   frontend:
     runs-on: ubuntu-latest
