@@ -20,7 +20,7 @@ Legend:
 - [ ] Metrics export (Prometheus) + dashboards/alerts (ingestion lag, scan duration, LLM latency/error rates, DB/Redis)
 - [ ] Distributed tracing (OpenTelemetry) with sampling and service-to-service context propagation
 - [ ] Health/readiness probes for **all** services (compose and Kubernetes), including `ai-service` dependency checks (DB + Ollama)
-- [ ] Secrets/config strategy for production (no committed `.env` — currently committed; Kubernetes Secrets/ConfigMaps; rotation + least privilege)
+- [ ] Secrets/config strategy for production (no committed `.env` — repo includes `.env-example` and ignores local `.env`; Kubernetes Secrets/ConfigMaps; rotation + least privilege)
 - [ ] Backup/restore runbook for PostgreSQL (including pgvector) + retention policy for raw scan outputs
 - [ ] CI security gates: dependency SCA, container scanning, SBOM generation (and optional image signing)
 - [ ] Kubernetes baseline: manifests/Helm, resource requests/limits, network policies, ingress/TLS, and environment profiles
@@ -83,7 +83,7 @@ Legend:
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
 - [x] Authentication/authorization at the gateway (configurable API key filter)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
-- [ ] Correlation IDs propagated end-to-end
+- [x] Correlation IDs propagated end-to-end
 - [x] Global error handling and consistent error payloads across services (gateway normalizes errors to common payload)
 - [x] Aggregate/normalize responses where needed (gateway CVE aggregate endpoint)
 - [x] Swagger/OpenAPI exposure as single entrypoint (gateway aggregates service docs) (see `gateway-service/src/main/resources/application.yml`)
