@@ -144,12 +144,15 @@ services:
 
       # === embeddings (Ollama) ===
       EMBEDDINGS_BASE_URL: "http://ollama:11434"
-      EMBEDDINGS_MODEL: nomic-embed-text
+      EMBEDDINGS_MODEL: "${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
       EMBEDDINGS_TIMEOUT_MS: "5000"
       EMBEDDINGS_EXPECTED_DIM: "768"
       EMBEDDINGS_STARTUP_ENABLED: "${EMBEDDINGS_STARTUP_ENABLED:-false}"
       EMBEDDINGS_STARTUP_BATCH_SIZE: "${EMBEDDINGS_STARTUP_BATCH_SIZE:-20}"
       EMBEDDINGS_STARTUP_MAX_BATCHES: "${EMBEDDINGS_STARTUP_MAX_BATCHES:-5}"
+
+      # === chat model (Spring AI Ollama) ===
+      SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL: "${OLLAMA_CHAT_MODEL:-llama3.2:3b-instruct-q4_K_M}"
 
     ports:
       - "8083:8083"

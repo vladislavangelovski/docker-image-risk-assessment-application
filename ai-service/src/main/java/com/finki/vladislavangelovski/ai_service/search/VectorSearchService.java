@@ -4,10 +4,13 @@ import com.finki.vladislavangelovski.ai_service.embeddings.OllamaEmbeddingsClien
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
 import java.util.Comparator;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class VectorSearchService {
+  private static final Logger log = LoggerFactory.getLogger(VectorSearchService.class);
   private final OllamaEmbeddingsClient embeddings;
   private final EmbeddingSearchRepository repo;
 
@@ -21,7 +24,13 @@ public class VectorSearchService {
   }
 
   public List<SearchHit> search(String query, int k) {
-    double[] emb = embeddings.embedText(query);
+    final double[] emb;
+    try {
+      emb = embeddings.embedText(query);
+    } catch (Exception ex) {
+      log.warn("Vector embedding failed; returning no semantic hits", ex);
+      return List.of();
+    }
 
     List<SearchHit> rawHits = repo.search(emb, k);
 

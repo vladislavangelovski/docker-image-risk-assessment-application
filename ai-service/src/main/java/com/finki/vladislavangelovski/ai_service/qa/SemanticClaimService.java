@@ -57,7 +57,13 @@ public class SemanticClaimService {
     int evidenceN = resolveEvidenceTopN(request.topK());
 
     // 1) Vector search (semantic)
-    List<SearchHit> hits = vectorSearchService.search(claim, RETRIEVAL_K);
+    List<SearchHit> hits;
+    try {
+      hits = vectorSearchService.search(claim, RETRIEVAL_K);
+    } catch (Exception ex) {
+      log.warn("Semantic retrieval failed; falling back to scan/CVE store evidence only", ex);
+      hits = List.of();
+    }
 
     // 2) If we have an image scan restriction, keep only CVEs that exist in the image
     if (allowedCves != null && !allowedCves.isEmpty()) {
@@ -208,7 +214,13 @@ public class SemanticClaimService {
             detectedCvesStr,
             packagesByCveStr);
 
-    String raw = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
+    final String raw;
+    try {
+      raw = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
+    } catch (Exception ex) {
+      log.warn("Chat model call failed; returning insufficient evidence verdict", ex);
+      return null;
+    }
     if (raw == null || raw.isBlank()) {
       return null;
     }

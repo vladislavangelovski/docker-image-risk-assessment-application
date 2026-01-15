@@ -186,7 +186,13 @@ public class SemanticQuestionService {
       throw new IllegalArgumentException("Question must not be null or blank");
     }
 
-    List<SearchHit> hits = vectorSearchService.search(question, RETRIEVAL_K);
+    List<SearchHit> hits;
+    try {
+      hits = vectorSearchService.search(question, RETRIEVAL_K);
+    } catch (Exception ex) {
+      log.warn("Semantic retrieval failed; falling back to CVE store evidence only", ex);
+      hits = List.of();
+    }
 
     if (allowedCves != null && !allowedCves.isEmpty()) {
       hits =
@@ -229,7 +235,31 @@ public class SemanticQuestionService {
             allowedCvesStr,
             packagesByCveStr);
 
-    String answer = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
+    final String answer;
+    try {
+      answer = chatClient.prompt().system(systemPrompt).user(userPrompt).call().content();
+    } catch (Exception ex) {
+      log.warn("Chat model call failed; returning evidence-only answer", ex);
+      String msg = ex.getMessage();
+      if (msg == null || msg.isBlank()) {
+        msg = "LLM call failed";
+      }
+      List<String> usedCvesFallback =
+          citations.stream().map(Citation::cveId).filter(Objects::nonNull).distinct().toList();
+
+      List<String> usedPackagesFallback = List.of();
+      if (packagesByCve != null && !packagesByCve.isEmpty()) {
+        usedPackagesFallback =
+            usedCvesFallback.stream()
+                .map(cve -> packagesByCve.getOrDefault(cve, List.of()))
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+      }
+      String fallback =
+          "LLM unavailable (" + msg + ").\n\nEvidence used:\n" + truncate(evidenceText, 2000);
+      return new QaQuestionResponse(fallback, citations, usedCvesFallback, usedPackagesFallback);
+    }
 
     List<String> usedCves =
         citations.stream().map(Citation::cveId).filter(Objects::nonNull).distinct().toList();
