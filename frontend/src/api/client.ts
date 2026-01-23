@@ -14,6 +14,7 @@ import type {
   ScanJobStatus,
   ScanResult
 } from "./types";
+import { getAccessToken } from "../auth/token";
 
 const DEFAULT_API_BASE = "http://localhost:8080";
 
@@ -56,6 +57,10 @@ async function requestJson<T>(
   }
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
+  }
+  const token = getAccessToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   let response: Response;

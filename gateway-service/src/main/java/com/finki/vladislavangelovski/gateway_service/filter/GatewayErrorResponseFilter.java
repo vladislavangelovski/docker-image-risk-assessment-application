@@ -38,6 +38,11 @@ public class GatewayErrorResponseFilter implements GlobalFilter, Ordered {
 
   @Override
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    String path = exchange.getRequest().getPath().value();
+    if (path != null && (path.equals("/auth") || path.startsWith("/auth/"))) {
+      return chain.filter(exchange);
+    }
+
     ServerHttpResponse response = exchange.getResponse();
     ServerHttpResponseDecorator decorated =
         new ServerHttpResponseDecorator(response) {

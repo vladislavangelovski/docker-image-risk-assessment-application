@@ -94,8 +94,7 @@ export function AdminEmbeddings() {
       />
 
       <Alert severity="warning">
-        Admin tools are intended for controlled environments. Avoid exposing these routes
-        without authentication in production.
+        Admin tools require the <code>admin</code> role. Use controlled environments and audit access.
       </Alert>
 
       <Paper className="section-card">

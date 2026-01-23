@@ -1,0 +1,35 @@
+{
+  "realm": "risk",
+  "enabled": true,
+  "displayName": "Docker Image Risk Assessment",
+  "registrationAllowed": true,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "risk-console",
+      "name": "Risk Console (SPA)",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "attributes": {"pkce.code.challenge.method": "S256"}
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Admin role for protected endpoints",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  }
+}

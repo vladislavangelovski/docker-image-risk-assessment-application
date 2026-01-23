@@ -19,6 +19,7 @@ class GatewayRouteContractTest {
         locator.getRouteDefinitions().map(RouteDefinition::getId).collectList().block();
     assertThat(ids)
         .contains(
+            "keycloak",
             "scan-service",
             "cve-store-service",
             "ai-service-assess",

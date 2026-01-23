@@ -1,13 +1,13 @@
 package com.finki.vladislavangelovski.gateway_service;
 
-import com.finki.vladislavangelovski.gateway_service.config.GatewayAuthProperties;
+import com.finki.vladislavangelovski.gateway_service.config.GatewaySecurityProperties;
 import com.finki.vladislavangelovski.gateway_service.config.ServiceEndpointsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ServiceEndpointsProperties.class, GatewayAuthProperties.class})
+@EnableConfigurationProperties({ServiceEndpointsProperties.class, GatewaySecurityProperties.class})
 public class GatewayServiceApplication {
 
   public static void main(String[] args) {

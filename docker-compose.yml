@@ -11,6 +11,54 @@ services:
     volumes:
       - dbdata:/var/lib/postgresql/data
 
+  keycloak-db:
+    image: pgvector/pgvector:pg17
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: keycloakdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d keycloakdb"]
+      interval: 10s
+      retries: 5
+    volumes:
+      - keycloak-dbdata:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.6
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    environment:
+      # Local-dev defaults (override via `.env`); do not use these defaults in production.
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: keycloakdb
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HEALTH_ENABLED: "true"
+    command: ["start-dev", "--import-realm"]
+    volumes:
+      - ./keycloak/realm-risk.json:/opt/keycloak/data/import/realm-risk.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; head -n1 <&3 | grep -q \"200\"'"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
   cve-store:
     build:
       context: .
@@ -154,9 +202,6 @@ services:
       # === chat model (Spring AI Ollama) ===
       SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL: "${OLLAMA_CHAT_MODEL:-llama3.2:3b-instruct-q4_K_M}"
 
-    ports:
-      - "8083:8083"
-
   gateway-service:
     build:
       context: .
@@ -168,6 +213,8 @@ services:
         condition: service_healthy
       ai-service:
         condition: service_started
+      keycloak:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 15s
@@ -178,7 +225,11 @@ services:
       SERVICES_SCAN_BASE_URL: http://scan-service:8080
       SERVICES_CVE_STORE_BASE_URL: http://cve-store:8080
       SERVICES_AI_BASE_URL: http://ai-service:8083
-      GATEWAY_CORS_ALLOWED_ORIGINS: "*"
+      SERVICES_KEYCLOAK_BASE_URL: http://keycloak:8080
+
+      GATEWAY_SECURITY_ENABLED: "true"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/auth/realms/risk/protocol/openid-connect/certs
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/auth/realms/risk
     ports:
       - "8080:8080"
 
@@ -196,5 +247,6 @@ services:
 
 volumes:
   dbdata:
+  keycloak-dbdata:
   redis-data:
   ollama-models:

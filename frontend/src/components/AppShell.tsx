@@ -33,12 +33,14 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import { useColorMode } from "../theme/colorMode";
 import { API_BASE_URL } from "../api/client";
+import { useAuth } from "../auth/useAuth";
 
 const drawerWidth = 288;
 
-const navItems = [
+const baseNavItems = [
   { label: "Dashboard", to: "/", icon: <DashboardRoundedIcon />, end: true },
   { label: "Assess Image", to: "/assess", icon: <ShieldRoundedIcon /> },
   { label: "QA Center", to: "/qa", icon: <PsychologyRoundedIcon /> },
@@ -94,8 +96,23 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const { mode, toggleMode } = useColorMode();
+  const auth = useAuth();
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
+
+  const navItems = React.useMemo(() => {
+    if (!auth.isAdmin) {
+      return baseNavItems;
+    }
+    return [
+      ...baseNavItems,
+      {
+        label: "Admin: Embeddings",
+        to: "/admin/embeddings",
+        icon: <AdminPanelSettingsRoundedIcon />
+      }
+    ];
+  }, [auth.isAdmin]);
 
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -166,6 +183,25 @@ export function AppShell() {
                 {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
+            {auth.initialized &&
+              (auth.authenticated ? (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ display: { xs: "none", sm: "block" } }}
+                  >
+                    {auth.user?.username || auth.user?.email || "Signed in"}
+                  </Typography>
+                  <Button variant="outlined" size="small" onClick={auth.logout}>
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <Button variant="contained" size="small" onClick={auth.login}>
+                  Sign in
+                </Button>
+              ))}
             <Tooltip title="About">
               <IconButton onClick={() => setAboutOpen(true)} aria-label="About">
                 <InfoOutlinedIcon />

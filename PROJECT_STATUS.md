@@ -15,7 +15,7 @@
 - **scan-service**: `ScanController` offers synchronous scan submission and retrieval with raw/normalized options. `DefaultScanOrchestrator` drives Trivy via `ProcessTrivyInvoker`, normalizes output with `JacksonTrivyParser`, persists results with `JdbcScanPersistence`, and caches them in Redis (or in-memory fallback) using `ScanCache`.
 - **ai-service**: `AssessmentServiceImpl` calls the scan service to obtain findings, fetches CVE details via `CveStoreClient`, computes weighted risk scores, and returns top findings with citations and risk bands. It also hosts semantic search/QA endpoints backed by pgvector (`JdbcVectorStoreRepository`) and an embeddings client (Ollama by default; quantized chat model configured for faster responses). Web clients and configs are wired for downstream HTTP calls and AI chat defaults.
 - **common**: Shared DTOs/models for CVE data, scan assessment payloads, QA responses, and MapStruct mappers to keep contracts consistent across services.
-- **gateway-service**: Spring Cloud Gateway routes for CVE/Scan/AI endpoints, request logging, CORS, and aggregated OpenAPI/Swagger UI. Authentication is currently disabled.
+- **gateway-service**: Spring Cloud Gateway routes for CVE/Scan/AI endpoints, request logging, CORS, and aggregated OpenAPI/Swagger UI. JWT authentication/authorization is enforced in the docker-compose stack (Keycloak proxied via the gateway at `/auth`).
 - **frontend**: React + TypeScript + Vite + MUI UI that calls the gateway only; includes Dashboard, Assessment, QA, and CVE lookup screens.
 - **docker-compose**: Brings up Postgres with pgvector, Redis, Ollama, frontend, and all services with environment wiring; AI service targets scan and CVE endpoints over the compose network.
 

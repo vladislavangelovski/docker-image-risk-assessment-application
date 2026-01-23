@@ -40,11 +40,14 @@ Copy `.env-example` to `.env` in the repo root and fill it in:
 POSTGRES_USER=risk
 POSTGRES_PASSWORD=dev
 POSTGRES_DB=riskdb
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=<set-a-strong-password>
 VITE_API_BASE_URL=http://localhost:8080
 ```
 Notes:
 - `VITE_API_BASE_URL` is used by the frontend build to target the gateway.
-- Gateway authentication is currently disabled (no API key required).
+- The compose stack runs Keycloak (proxied via the gateway at `/auth`) and enables JWT auth at the gateway.
+- If `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD` are not set, docker-compose defaults them to `admin` / `admin` for local development.
 
 Optional (AI embeddings startup indexing):
 ```
@@ -60,10 +63,16 @@ EMBEDDINGS_STARTUP_MAX_BATCHES=5
     - Gateway API: `http://localhost:8080`
     - Swagger UI (aggregated): `http://localhost:8080/swagger-ui.html`
     - Frontend UI: `http://localhost:5173`
+    - Keycloak (via gateway): `http://localhost:8080/auth/`
+    - Keycloak admin console: `http://localhost:8080/auth/admin/`
+
+Authentication note:
+- The UI uses Keycloak (OIDC) for login. If you don’t have a user yet, register one from the Keycloak login screen (registration is enabled for the `risk` realm).
 
 ### Security defaults (gateway)
 - **CORS**: locked down by default (`allowedOrigins: []`); the `dev` profile opens it up for local development (`gateway-service/src/main/resources/application-dev.yml`).
 - **Trusted proxies**: locked down by default (localhost-only); the `dev` profile allows all proxies for local compose.
+- **Auth**: JWT authentication/authorization at the gateway (Keycloak-backed in docker-compose). Admin routes under `/api/*/admin/**` require the `admin` role.
 
 ### Sensitive payload logging (scan-service)
 - Request payload logging is **off by default** (`scan-service/src/main/resources/application.yml` → `debug.http.log-requests=false`).

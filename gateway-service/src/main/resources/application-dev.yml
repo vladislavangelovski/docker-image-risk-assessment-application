@@ -6,7 +6,7 @@ spring:
           trusted-proxies: ".*"
       globalcors:
         cors-configurations:
-          '[/**]':
+          '[/api/**]':
             allowedOrigins: "*"
             allowedMethods: "*"
             allowedHeaders: "*"

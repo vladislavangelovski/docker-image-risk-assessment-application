@@ -13,7 +13,7 @@ Legend:
 
 ## Production readiness gate (ship/no-ship)
 - [x] Secure-by-default gateway edge (CORS deny-all + trusted proxies allowlist) with `dev` profile override (see `gateway-service/src/main/resources/application.yml` and `gateway-service/src/main/resources/application-dev.yml`)
-- [ ] Authentication + authorization at the gateway (and protect admin endpoints)
+- [x] Authentication + authorization at the gateway (Spring Security JWT; admin endpoints protected)
 - [ ] Rate limiting + request size limits at the gateway (per-route; include scan and QA endpoints)
 - [x] Correlation/request ID propagation end-to-end (gateway → services)
 - [ ] Structured JSON logging with redaction rules
@@ -81,7 +81,7 @@ Legend:
 
 ## Phase 6 – gateway-service
 - [x] Spring Cloud Gateway routing to downstream services (see `gateway-service/src/main/resources/application.yml`)
-- [x] Authentication/authorization at the gateway (configurable API key filter)
+- [x] Authentication/authorization at the gateway (Spring Security JWT; admin endpoints protected)
 - [x] Request logging (see `gateway-service/src/main/java/com/finki/vladislavangelovski/gateway_service/filter/RequestLoggingFilter.java`)
 - [x] Correlation IDs propagated end-to-end
 - [x] Global error handling and consistent error payloads across services (gateway normalizes errors to common payload)

@@ -5,6 +5,7 @@ import { useLocalStorageState } from "../hooks/useLocalStorageState";
 import { ColorModeContext } from "../theme/colorMode";
 import { buildTheme } from "../theme/buildTheme";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { AuthProvider } from "../auth/AuthProvider";
 
 const STORAGE_KEY = "risk-console.colorMode";
 
@@ -39,7 +40,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <ErrorBoundary>
+          <AuthProvider>{children}</AuthProvider>
+        </ErrorBoundary>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );

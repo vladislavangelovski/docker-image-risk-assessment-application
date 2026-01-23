@@ -23,11 +23,19 @@ spring:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
       globalcors:
         cors-configurations:
-          '[/**]':
+          '[/api/**]':
             allowedOrigins: []
             allowedMethods: "*"
             allowedHeaders: "*"
       routes:
+        # Keycloak (auth) — exposed via the gateway as the single public entrypoint
+        - id: keycloak
+          uri: ${services.keycloak-base-url}
+          predicates:
+            - Path=/auth/**
+          filters:
+            - PreserveHostHeader
+
         - id: scan-service
           uri: ${services.scan-base-url}
           predicates:
@@ -139,17 +147,11 @@ services:
   scan-base-url: http://scan-service:8080
   cve-store-base-url: http://cve-store:8080
   ai-base-url: http://ai-service:8083
+  keycloak-base-url: http://keycloak:8080
 
 gateway:
-  auth:
+  security:
     enabled: false
-    header: X-API-Key
-    api-key: ${GATEWAY_API_KEY:}
-    excluded-paths:
-      - /actuator
-      - /health
-      - /swagger-ui
-      - /v3/api-docs
 
 springdoc:
   swagger-ui:

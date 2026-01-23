@@ -30,14 +30,16 @@ public class DependencyHealthService {
     Mono<DependencyHealth> cveStoreHealth =
         checkHealth("cve-store-service", properties.getCveStoreBaseUrl());
     Mono<DependencyHealth> aiHealth = checkHealth("ai-service", properties.getAiBaseUrl());
+    Mono<DependencyHealth> keycloakHealth = checkKeycloakHealth(properties.getKeycloakBaseUrl());
 
-    return Mono.zip(scanHealth, cveStoreHealth, aiHealth)
+    return Mono.zip(scanHealth, cveStoreHealth, aiHealth, keycloakHealth)
         .map(
             tuple -> {
               Map<String, DependencyHealth> dependencies = new LinkedHashMap<>();
               dependencies.put(tuple.getT1().name(), tuple.getT1());
               dependencies.put(tuple.getT2().name(), tuple.getT2());
               dependencies.put(tuple.getT3().name(), tuple.getT3());
+              dependencies.put(tuple.getT4().name(), tuple.getT4());
 
               boolean allHealthy =
                   dependencies.values().stream().allMatch(DependencyHealth::isHealthy);
@@ -60,6 +62,24 @@ public class DependencyHealthService {
               LOGGER.warn("Health check for {} failed: {}", name, ex.getMessage());
               return Mono.just(
                   new DependencyHealth(name, HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase()));
+            });
+  }
+
+  private Mono<DependencyHealth> checkKeycloakHealth(String baseUrl) {
+    String healthUrl =
+        String.format("%s/auth/realms/risk/.well-known/openid-configuration", baseUrl);
+    return webClient
+        .get()
+        .uri(healthUrl)
+        .retrieve()
+        .toBodilessEntity()
+        .timeout(Duration.ofSeconds(5))
+        .map(ignored -> new DependencyHealth("keycloak", Status.UP.getCode()))
+        .onErrorResume(
+            ex -> {
+              LOGGER.warn("Health check for keycloak failed: {}", ex.getMessage());
+              return Mono.just(
+                  new DependencyHealth("keycloak", HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase()));
             });
   }
 
