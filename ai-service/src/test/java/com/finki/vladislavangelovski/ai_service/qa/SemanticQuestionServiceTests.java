@@ -33,8 +33,17 @@ class SemanticQuestionServiceTests {
             Map.of(
                 "CVE-2021-44228",
                 new CveForEmbedding(
-                    "CVE-2021-44228", "Log4Shell", "desc", null, 10.0, null, null, null, null,
-                    0.9, null)));
+                    "CVE-2021-44228",
+                    "Log4Shell",
+                    "desc",
+                    null,
+                    10.0,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0.9,
+                    null)));
 
     PromptTemplates templates = mock(PromptTemplates.class);
     when(templates.questionSystem()).thenReturn("");

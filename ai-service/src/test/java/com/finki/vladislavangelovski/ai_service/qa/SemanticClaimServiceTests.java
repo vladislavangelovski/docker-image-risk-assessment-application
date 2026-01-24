@@ -36,15 +36,25 @@ class SemanticClaimServiceTests {
             Map.of(
                 "CVE-2021-44228",
                 new CveForEmbedding(
-                    "CVE-2021-44228", "Log4Shell", "desc", null, 10.0, null, null, null, null,
-                    0.9, null)));
+                    "CVE-2021-44228",
+                    "Log4Shell",
+                    "desc",
+                    null,
+                    10.0,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0.9,
+                    null)));
 
     PromptTemplates templates = mock(PromptTemplates.class);
     when(templates.claimSystem()).thenReturn("");
     when(templates.claimUser()).thenReturn("%s\n%s\n%s\n%s");
 
     SemanticClaimService service =
-        new SemanticClaimService(vectorSearch, chatClient, new ObjectMapper(), cveStoreClient, templates);
+        new SemanticClaimService(
+            vectorSearch, chatClient, new ObjectMapper(), cveStoreClient, templates);
 
     var response =
         service.judgeClaim(
@@ -58,4 +68,3 @@ class SemanticClaimServiceTests {
     assertThat(response.citations()).isNotEmpty();
   }
 }
-

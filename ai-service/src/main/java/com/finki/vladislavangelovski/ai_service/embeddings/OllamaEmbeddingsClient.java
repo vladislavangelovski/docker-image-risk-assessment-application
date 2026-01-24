@@ -37,7 +37,8 @@ public class OllamaEmbeddingsClient implements EmbeddingsClient {
       return List.of();
     }
 
-    // Prefer batch endpoint when available: /api/embed { model, input:[...] } -> { embeddings:[[...],...] }
+    // Prefer batch endpoint when available: /api/embed { model, input:[...] } -> {
+    // embeddings:[[...],...] }
     try {
       var req = Map.of("model", model, "input", texts);
       OllamaEmbedResponse resp =
@@ -51,11 +52,13 @@ public class OllamaEmbeddingsClient implements EmbeddingsClient {
               .block();
       return parseBatch(resp);
     } catch (WebClientResponseException.NotFound ex) {
-      // Some Ollama versions expose only /api/embeddings (single prompt). Fall back to per-text calls.
+      // Some Ollama versions expose only /api/embeddings (single prompt). Fall back to per-text
+      // calls.
       log.debug("Ollama /api/embed not found; falling back to /api/embeddings per text");
       return embedAllViaEmbeddingsEndpoint(texts);
     } catch (WebClientResponseException ex) {
-      log.warn("Ollama embedding request failed (status={}): {}", ex.getStatusCode(), ex.getMessage());
+      log.warn(
+          "Ollama embedding request failed (status={}): {}", ex.getStatusCode(), ex.getMessage());
       return List.of();
     } catch (RuntimeException ex) {
       log.warn("Ollama embedding request failed: {}", ex.getMessage());

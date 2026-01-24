@@ -46,10 +46,10 @@ while true; do
   sleep 5
 done
 
-echo "Smoke check: CVE list endpoint..."
-status=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY_URL/api/v1/cves?page=0&size=1" || true)
+echo "Smoke check: CVE store API docs endpoint..."
+status=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY_URL/v3/api-docs/cve-store" || true)
 if [[ "$status" != "200" ]]; then
-  echo "CVE list returned status $status"
+  echo "CVE store API docs returned status $status"
   exit 1
 fi
 
