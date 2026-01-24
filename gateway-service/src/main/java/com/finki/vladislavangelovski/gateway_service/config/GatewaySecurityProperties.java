@@ -14,4 +14,3 @@ public class GatewaySecurityProperties {
     this.enabled = enabled;
   }
 }
-

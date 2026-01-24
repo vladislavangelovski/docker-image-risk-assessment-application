@@ -17,4 +17,3 @@ class TestSecurityController {
     return Mono.just("ok");
   }
 }
-

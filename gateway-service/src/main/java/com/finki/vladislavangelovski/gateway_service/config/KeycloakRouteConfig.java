@@ -9,7 +9,8 @@ import org.springframework.context.annotation.Configuration;
 public class KeycloakRouteConfig {
 
   @Bean
-  RouteLocator keycloakRouteLocator(RouteLocatorBuilder builder, ServiceEndpointsProperties properties) {
+  RouteLocator keycloakRouteLocator(
+      RouteLocatorBuilder builder, ServiceEndpointsProperties properties) {
     return builder
         .routes()
         .route(

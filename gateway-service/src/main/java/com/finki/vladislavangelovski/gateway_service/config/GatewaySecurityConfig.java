@@ -8,10 +8,10 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -43,7 +43,8 @@ public class GatewaySecurityConfig {
     http.httpBasic(ServerHttpSecurity.HttpBasicSpec::disable);
     http.formLogin(ServerHttpSecurity.FormLoginSpec::disable);
     http.logout(ServerHttpSecurity.LogoutSpec::disable);
-    http.headers(headers -> headers.frameOptions(ServerHttpSecurity.HeaderSpec.FrameOptionsSpec::disable));
+    http.headers(
+        headers -> headers.frameOptions(ServerHttpSecurity.HeaderSpec.FrameOptionsSpec::disable));
 
     if (!properties.isEnabled()) {
       return http.authorizeExchange(exchanges -> exchanges.anyExchange().permitAll()).build();

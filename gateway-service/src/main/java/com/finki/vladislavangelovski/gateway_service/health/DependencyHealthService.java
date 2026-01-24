@@ -79,7 +79,8 @@ public class DependencyHealthService {
             ex -> {
               LOGGER.warn("Health check for keycloak failed: {}", ex.getMessage());
               return Mono.just(
-                  new DependencyHealth("keycloak", HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase()));
+                  new DependencyHealth(
+                      "keycloak", HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase()));
             });
   }
 
