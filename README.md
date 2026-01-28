@@ -103,6 +103,7 @@ Use a small, reproducible dataset for local demos instead of the full NVD/EPSS f
 - Trigger a one-off ingest through the gateway:
   - `POST /api/v1/admin/ingestion/nvd`
   - `POST /api/v1/admin/ingestion/epss`
+  - Full historical NVD bootstrap: `POST /api/v1/admin/ingestion/bootstrap` (optionally `?epss=false`)
 - Seed embeddings with a short CVE list (or let the AI service auto-index from an image scan):
   - `POST /api/v1/admin/embeddings/index` with `{ "cveIds": ["CVE-2024-XXXX", "CVE-2025-YYYY"] }`
 - Use a small public image (e.g. `alpine:3.19`, `nginx:1.25`) to generate a scan and inspect it in the UI.
