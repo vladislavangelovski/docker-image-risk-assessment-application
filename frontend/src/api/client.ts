@@ -7,6 +7,7 @@ import type {
   EmbeddingsSearchResponse,
   EpssScore,
   Page,
+  QaChatHistoryItem,
   QaClaimRequest,
   QaClaimResponse,
   QaQuestionRequest,
@@ -98,6 +99,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  qaHistory: (limit = 50) =>
+    requestJson<QaChatHistoryItem[]>(`/api/v1/qa/history?limit=${limit}`),
   cveList: (page: number, size: number) =>
     requestJson<Page<CveEntry>>(`/api/v1/cves?page=${page}&size=${size}`),
   cveById: (cveId: string) => requestJson<CveEntry>(`/api/v1/cves/${cveId}`),

@@ -19,13 +19,16 @@ import FactCheckIcon from "@mui/icons-material/FactCheck";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { QaClaimResponse, QaQuestionResponse, Verdict } from "../api/types";
+import type { QaChatHistoryItem, QaClaimResponse, QaQuestionResponse, Verdict } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
 import { JsonPanel } from "../components/JsonPanel";
 import { useRecentActivity } from "../hooks/useRecentActivity";
 import { copyText } from "../utils/clipboard";
+import { formatRelativeTime } from "../utils/time";
 
 function verdictColor(verdict?: Verdict) {
   switch (verdict) {
@@ -61,6 +64,22 @@ export function QaCenter() {
   const [showClaimRaw, setShowClaimRaw] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const { addActivity } = useRecentActivity();
+  const [historyItems, setHistoryItems] = React.useState<QaChatHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+  const [historyError, setHistoryError] = React.useState<string | null>(null);
+
+  const refreshHistory = React.useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const data = await api.qaHistory(50);
+      setHistoryItems(data || []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Unable to load chat history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -74,6 +93,10 @@ export function QaCenter() {
     setClaimImageRef(searchParams.get("imageRef") || "");
     setClaimTopK(searchParams.get("topK") || "4");
   }, [searchParams]);
+
+  React.useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
 
   const handleQuestionSubmit = async () => {
     if (!question.trim()) {
@@ -117,6 +140,7 @@ export function QaCenter() {
           questionImageRef.trim() ? `&imageRef=${encodeURIComponent(questionImageRef.trim())}` : ""
         }${trimmedK && Number.isFinite(kParsed) ? `&k=${kParsed}` : ""}`
       });
+      void refreshHistory();
     } catch (err) {
       setQuestionError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -167,6 +191,7 @@ export function QaCenter() {
           claimImageRef.trim() ? `&imageRef=${encodeURIComponent(claimImageRef.trim())}` : ""
         }${trimmedK && Number.isFinite(kParsed) ? `&topK=${kParsed}` : ""}`
       });
+      void refreshHistory();
     } catch (err) {
       setClaimError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -182,6 +207,44 @@ export function QaCenter() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1200);
     }
+  };
+
+  const openHistoryItem = (item: QaChatHistoryItem) => {
+    if (item.kind === "QUESTION") {
+      setTab(0);
+      setQuestion(item.prompt || "");
+      setQuestionImageRef(item.imageRef || "");
+      setQuestionK(item.k != null ? String(item.k) : "4");
+      setQuestionResult(item.questionResponse ?? null);
+      setQuestionError(null);
+      setShowQuestionRaw(false);
+    } else if (item.kind === "CLAIM") {
+      setTab(1);
+      setClaim(item.prompt || "");
+      setClaimImageRef(item.imageRef || "");
+      setClaimTopK(item.k != null ? String(item.k) : "4");
+      setClaimResult(item.claimResponse ?? null);
+      setClaimError(null);
+      setShowClaimRaw(false);
+    }
+  };
+
+  const historyMeta = (item: QaChatHistoryItem) => {
+    const parts: string[] = [];
+    parts.push(item.kind === "CLAIM" ? "Claim" : "Question");
+    if (item.imageRef) {
+      parts.push(`Image: ${item.imageRef}`);
+    }
+    if (item.k != null) {
+      parts.push(`K=${item.k}`);
+    }
+    if (item.createdAt) {
+      const ts = Date.parse(item.createdAt);
+      if (!Number.isNaN(ts)) {
+        parts.push(formatRelativeTime(ts));
+      }
+    }
+    return parts.join(" • ");
   };
 
   return (
@@ -435,6 +498,69 @@ export function QaCenter() {
           </Stack>
       )}
 
+        </Stack>
+      </Paper>
+
+      <Paper className="section-card">
+        <Stack spacing={2} sx={{ p: 3 }}>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <HistoryRoundedIcon sx={{ color: "var(--mint-500)" }} />
+              <Typography variant="h6" sx={{ fontWeight: 750 }}>
+                Chat history
+              </Typography>
+            </Stack>
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<RefreshRoundedIcon />}
+              onClick={refreshHistory}
+              disabled={historyLoading}
+            >
+              Refresh
+            </Button>
+          </Stack>
+          {historyLoading && <Typography color="text.secondary">Loading history…</Typography>}
+          {historyError && <Alert severity="warning">{historyError}</Alert>}
+          {!historyLoading && historyItems.length === 0 && (
+            <Typography color="text.secondary">No saved chats yet.</Typography>
+          )}
+          {historyItems.length > 0 && (
+            <Stack spacing={1}>
+              {historyItems.map((item) => {
+                const label =
+                  item.prompt && item.prompt.length > 120
+                    ? `${item.prompt.slice(0, 117)}…`
+                    : item.prompt || "Untitled";
+                return (
+                  <Paper
+                    key={item.id ?? `${item.kind}-${label}`}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 3,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 2
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {label}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {historyMeta(item)}
+                      </Typography>
+                    </Box>
+                    <Button variant="outlined" size="small" onClick={() => openHistoryItem(item)}>
+                      Open
+                    </Button>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          )}
         </Stack>
       </Paper>
     </Stack>

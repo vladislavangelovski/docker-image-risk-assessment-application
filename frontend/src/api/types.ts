@@ -57,6 +57,19 @@ export interface QaClaimResponse {
   citations?: Citation[];
 }
 
+export type QaChatKind = "QUESTION" | "CLAIM";
+
+export interface QaChatHistoryItem {
+  id?: number;
+  kind?: QaChatKind;
+  prompt?: string;
+  imageRef?: string;
+  k?: number;
+  questionResponse?: QaQuestionResponse;
+  claimResponse?: QaClaimResponse;
+  createdAt?: string;
+}
+
 export interface Reference {
   url?: string;
   source?: string;

@@ -88,6 +88,7 @@ Authentication note:
 - Image assessment: `POST http://localhost:8080/api/v1/assess/image`
 - QA question: `POST http://localhost:8080/api/v1/qa/question`
 - QA claim: `POST http://localhost:8080/api/v1/qa/claim`
+- QA history: `GET http://localhost:8080/api/v1/qa/history`
 
 QA note:
 - When you pass `imageRef`, the AI service will **auto-index missing CVE embeddings** for the CVEs found in that image scan (first request may take longer).
