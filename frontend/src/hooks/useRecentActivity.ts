@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../auth/useAuth";
 import { useLocalStorageState } from "./useLocalStorageState";
 
 export type ActivityKind =
@@ -19,7 +20,7 @@ export interface ActivityItem {
   timestamp: number;
 }
 
-const STORAGE_KEY = "risk-console.recentActivity";
+const STORAGE_KEY_PREFIX = "risk-console.recentActivity";
 const MAX_ITEMS = 24;
 
 function makeId() {
@@ -30,7 +31,15 @@ function makeId() {
 }
 
 export function useRecentActivity() {
-  const [items, setItems] = useLocalStorageState<ActivityItem[]>(STORAGE_KEY, []);
+  const auth = useAuth();
+  const userKey = React.useMemo(() => {
+    const user =
+      auth.user?.username || auth.user?.email || auth.user?.name || (auth.authenticated ? "user" : "anonymous");
+    return encodeURIComponent(user.trim().toLowerCase());
+  }, [auth.authenticated, auth.user?.email, auth.user?.name, auth.user?.username]);
+  const storageKey = `${STORAGE_KEY_PREFIX}.${userKey}`;
+
+  const [items, setItems] = useLocalStorageState<ActivityItem[]>(storageKey, []);
 
   const addActivity = React.useCallback(
     (activity: Omit<ActivityItem, "id" | "timestamp"> & Partial<Pick<ActivityItem, "timestamp">>) => {
@@ -49,4 +58,3 @@ export function useRecentActivity() {
 
   return { items, addActivity, clearActivity } as const;
 }
-
