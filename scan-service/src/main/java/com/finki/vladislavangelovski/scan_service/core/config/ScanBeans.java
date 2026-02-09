@@ -1,10 +1,13 @@
 package com.finki.vladislavangelovski.scan_service.core.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finki.vladislavangelovski.scan_service.core.ConfigScanOrchestrator;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
 import com.finki.vladislavangelovski.scan_service.core.ScanJobCoordinator;
 import com.finki.vladislavangelovski.scan_service.core.ScanJobStore;
 import com.finki.vladislavangelovski.scan_service.core.ScanOrchestrator;
+import com.finki.vladislavangelovski.scan_service.core.TrivyConfigInvoker;
+import com.finki.vladislavangelovski.scan_service.core.TrivyConfigParser;
 import com.finki.vladislavangelovski.scan_service.core.TrivyInvoker;
 import com.finki.vladislavangelovski.scan_service.core.TrivyParser;
 import com.finki.vladislavangelovski.scan_service.core.impl.*;
@@ -23,8 +26,24 @@ public class ScanBeans {
   }
 
   @Bean
+  public TrivyConfigInvoker trivyConfigInvoker(ScanProperties scanProperties) {
+    return new ProcessTrivyConfigInvoker(scanProperties);
+  }
+
+  @Bean
   public TrivyParser trivyParser() {
     return new JacksonTrivyParser();
+  }
+
+  @Bean
+  public TrivyConfigParser trivyConfigParser() {
+    return new JacksonTrivyConfigParser();
+  }
+
+  @Bean
+  public ConfigScanOrchestrator configScanOrchestrator(
+      TrivyConfigInvoker trivyConfigInvoker, TrivyConfigParser trivyConfigParser) {
+    return new DefaultConfigScanOrchestrator(trivyConfigInvoker, trivyConfigParser);
   }
 
   @Bean

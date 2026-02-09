@@ -26,6 +26,7 @@ import { useTheme } from "@mui/material/styles";
 import { NavLink, Outlet } from "react-router-dom";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import PsychologyRoundedIcon from "@mui/icons-material/PsychologyRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
@@ -43,6 +44,7 @@ const drawerWidth = 288;
 const baseNavItems = [
   { label: "Dashboard", to: "/", icon: <DashboardRoundedIcon />, end: true },
   { label: "Assess Image", to: "/assess", icon: <ShieldRoundedIcon /> },
+  { label: "Assess Compose", to: "/assess/compose", icon: <DescriptionRoundedIcon /> },
   { label: "QA Center", to: "/qa", icon: <PsychologyRoundedIcon /> },
   { label: "CVE Lookup", to: "/cves", icon: <BugReportRoundedIcon /> },
   { label: "Scans", to: "/scans", icon: <ReceiptLongRoundedIcon /> }

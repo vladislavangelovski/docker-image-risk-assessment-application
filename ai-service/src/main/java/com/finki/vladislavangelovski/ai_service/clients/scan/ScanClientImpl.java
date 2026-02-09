@@ -1,5 +1,6 @@
 package com.finki.vladislavangelovski.ai_service.clients.scan;
 
+import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ConfigScanResult;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanResult;
 import com.finki.vladislavangelovski.ai_service.clients.scan.exception.ScanClientException;
@@ -43,6 +44,16 @@ public class ScanClientImpl implements ScanClient {
     }
 
     return submitScan(imageRef);
+  }
+
+  @Override
+  public ConfigScanResult scanDockerCompose(String composeYaml) {
+    return submitConfigScan("/config/docker-compose", composeYaml);
+  }
+
+  @Override
+  public ConfigScanResult scanDockerfile(String dockerfile) {
+    return submitConfigScan("/config/dockerfile", dockerfile);
   }
 
   private Optional<ScanResult> fetchExisting(String imageRef) {
@@ -99,6 +110,35 @@ public class ScanClientImpl implements ScanClient {
     } catch (Exception ex) {
       log.error("[ai-service] Scan submission failed for image {}", imageRef, ex);
       throw new ScanClientException("Scan submission failed: " + ex.getMessage(), ex);
+    }
+  }
+
+  private ConfigScanResult submitConfigScan(String suffix, String content) {
+    try {
+      return scanWebClient
+          .post()
+          .uri(assessPath + suffix)
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(Map.of("content", content))
+          .retrieve()
+          .onStatus(status -> status.isError(), resp -> resp.createException().flatMap(Mono::error))
+          .bodyToMono(ConfigScanResult.class)
+          .block();
+    } catch (WebClientResponseException ex) {
+      log.error(
+          "[ai-service] Config scan submission failed with status {} and body {}",
+          ex.getStatusCode(),
+          ex.getResponseBodyAsString(),
+          ex);
+      throw new ScanClientException(
+          "Config scan submission failed: HTTP "
+              + ex.getStatusCode().value()
+              + " "
+              + ex.getStatusText(),
+          ex);
+    } catch (Exception ex) {
+      log.error("[ai-service] Config scan submission failed", ex);
+      throw new ScanClientException("Config scan submission failed: " + ex.getMessage(), ex);
     }
   }
 }

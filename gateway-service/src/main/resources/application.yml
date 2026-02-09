@@ -49,12 +49,26 @@ spring:
           predicates:
             - Path=/api/v1/admin/ingestion/**
         # ai-service (Assessment)
+        - id: ai-service-assess-compose
+          order: -1
+          uri: ${services.ai-base-url}
+          predicates:
+            - Path=/api/v1/assess/compose
+          filters:
+            - 'RewritePath=/api/v1/assess(?<segment>/?.*), /api/assess${segment}'
+          metadata:
+            response-timeout: 600000
+
         - id: ai-service-assess
           uri: ${services.ai-base-url}
           predicates:
             - Path=/api/v1/assess/**
           filters:
             - 'RewritePath=/api/v1/assess(?<segment>/?.*), /api/assess${segment}'
+          metadata:
+            # Allow longer-running assessments (e.g., docker-compose with multiple images).
+            # Value is milliseconds (Spring Cloud Gateway route metadata).
+            response-timeout: 600000
 
         # ALIAS: ai-service (Assessment) without /v1 prefix
         - id: ai-service-assess-alias

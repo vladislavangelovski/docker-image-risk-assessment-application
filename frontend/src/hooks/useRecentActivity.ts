@@ -4,6 +4,7 @@ import { useLocalStorageState } from "./useLocalStorageState";
 
 export type ActivityKind =
   | "ASSESS_IMAGE"
+  | "ASSESS_COMPOSE"
   | "QA_QUESTION"
   | "QA_CLAIM"
   | "CVE_LOOKUP"

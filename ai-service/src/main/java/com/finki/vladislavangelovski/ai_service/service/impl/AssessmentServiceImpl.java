@@ -1,6 +1,7 @@
 package com.finki.vladislavangelovski.ai_service.service.impl;
 
 import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
+import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ConfigScanResult;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanFinding;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanResult;
@@ -10,9 +11,13 @@ import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
 import com.finki.vladislavangelovski.ai_service.service.AssessmentService;
 import com.finki.vladislavangelovski.common.dto.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 @Service
 public class AssessmentServiceImpl implements AssessmentService {
@@ -58,6 +63,12 @@ public class AssessmentServiceImpl implements AssessmentService {
     }
     return RiskBand.LOW;
   }
+
+  private static final int MAX_PARALLEL_IMAGE_ASSESSMENTS = 3;
+
+  private record ComposeServiceSpec(String imageRef, boolean hasBuild) {}
+
+  private record ImageAssessmentOutcome(AssessImageResponse assessment, String error) {}
 
   private static String pickBestUrl(CveForEmbedding d) {
     if (d.references() != null && !d.references().isEmpty()) {
@@ -249,6 +260,285 @@ public class AssessmentServiceImpl implements AssessmentService {
             : baseExplanation + " Most affected packages: " + pkgHint + ".";
     return new AssessImageResponse(
         request.imageRef(), overall, band, topFindings, explanation, citations);
+  }
+
+  @Override
+  public AssessComposeResponse assessCompose(AssessComposeRequest request) {
+    int k = request.k() != null ? request.k() : kDefault;
+    boolean scanImages = request.scanImages() == null || request.scanImages();
+
+    Map<String, ComposeServiceSpec> services = parseComposeServices(request.composeYaml());
+    if (services.isEmpty()) {
+      ComposeConfigScan configScan = bestEffortComposeConfigScan(request.composeYaml());
+      int overall =
+          configScan != null && configScan.riskScore() != null ? configScan.riskScore() : 0;
+      return new AssessComposeResponse(
+          overall,
+          band(overall),
+          List.of(),
+          configScan,
+          overall == 0
+              ? "No services were found in the docker-compose file."
+              : "Risk is based on docker-compose configuration findings only.");
+    }
+
+    ComposeConfigScan configScan = bestEffortComposeConfigScan(request.composeYaml());
+    int configRisk =
+        configScan != null && configScan.riskScore() != null ? configScan.riskScore() : 0;
+
+    List<ComposeServiceAssessment> serviceAssessments = new ArrayList<>();
+    int maxImageRisk = 0;
+    String maxImageService = null;
+    Integer maxImageServiceScore = null;
+
+    Map<String, CompletableFuture<ImageAssessmentOutcome>> byImageRef = new LinkedHashMap<>();
+    ExecutorService executor = null;
+    if (scanImages) {
+      List<String> uniqueImages =
+          services.values().stream()
+              .filter(Objects::nonNull)
+              .map(ComposeServiceSpec::imageRef)
+              .filter(Objects::nonNull)
+              .map(String::trim)
+              .filter(s -> !s.isBlank())
+              .distinct()
+              .toList();
+
+      if (!uniqueImages.isEmpty()) {
+        int poolSize = Math.min(MAX_PARALLEL_IMAGE_ASSESSMENTS, uniqueImages.size());
+        executor =
+            Executors.newFixedThreadPool(
+                poolSize,
+                r -> {
+                  Thread t = new Thread(r, "compose-image-assess");
+                  t.setDaemon(true);
+                  return t;
+                });
+
+        for (String imageRef : uniqueImages) {
+          byImageRef.put(
+              imageRef,
+              CompletableFuture.supplyAsync(
+                  () -> {
+                    try {
+                      AssessImageResponse assessment =
+                          assessImage(new AssessImageRequest(imageRef, k));
+                      return new ImageAssessmentOutcome(assessment, null);
+                    } catch (Throwable ex) {
+                      String msg = ex.getMessage();
+                      if (msg == null || msg.isBlank()) {
+                        msg = ex.getClass().getSimpleName();
+                      }
+                      return new ImageAssessmentOutcome(null, "Failed to assess image: " + msg);
+                    }
+                  },
+                  executor));
+        }
+      }
+    }
+
+    try {
+      for (var entry : services.entrySet()) {
+        String serviceName = entry.getKey();
+        ComposeServiceSpec spec = entry.getValue();
+        String imageRef = spec != null ? spec.imageRef() : null;
+
+        if (imageRef == null || imageRef.isBlank()) {
+          String msg =
+              spec != null && spec.hasBuild()
+                  ? "Service uses build, but no image is set in docker-compose."
+                  : "Service has no image configured.";
+          serviceAssessments.add(new ComposeServiceAssessment(serviceName, null, null, msg));
+          continue;
+        }
+
+        String normalizedImageRef = imageRef.trim();
+
+        if (!scanImages) {
+          serviceAssessments.add(
+              new ComposeServiceAssessment(
+                  serviceName, normalizedImageRef, null, "Image scanning is disabled."));
+          continue;
+        }
+
+        CompletableFuture<ImageAssessmentOutcome> future = byImageRef.get(normalizedImageRef);
+        ImageAssessmentOutcome outcome =
+            future != null ? future.join() : new ImageAssessmentOutcome(null, "No scan scheduled");
+
+        serviceAssessments.add(
+            new ComposeServiceAssessment(
+                serviceName, normalizedImageRef, outcome.assessment(), outcome.error()));
+
+        AssessImageResponse assessment = outcome.assessment();
+        if (assessment != null && assessment.overallRisk() != null) {
+          int score = assessment.overallRisk();
+          if (score > maxImageRisk) {
+            maxImageRisk = score;
+            maxImageService = serviceName;
+            maxImageServiceScore = score;
+          }
+        }
+      }
+    } finally {
+      if (executor != null) {
+        executor.shutdownNow();
+      }
+    }
+
+    int overall = Math.max(maxImageRisk, configRisk);
+    RiskBand band = band(overall);
+
+    StringBuilder explanation = new StringBuilder();
+    explanation
+        .append("Overall compose risk is ")
+        .append(band)
+        .append(" (")
+        .append(overall)
+        .append("/100).");
+
+    if (maxImageService != null && maxImageServiceScore != null) {
+      explanation
+          .append(" Highest image risk: ")
+          .append(maxImageService)
+          .append(" (")
+          .append(maxImageServiceScore)
+          .append("/100).");
+    }
+
+    if (configScan != null) {
+      if (configScan.error() != null && !configScan.error().isBlank()) {
+        explanation.append(" Compose config scan failed.");
+      } else if (configScan.totalFindings() != null && configScan.totalFindings() > 0) {
+        explanation
+            .append(" Compose config findings: ")
+            .append(configScan.totalFindings())
+            .append(".");
+      }
+    }
+
+    return new AssessComposeResponse(
+        overall, band, serviceAssessments, configScan, explanation.toString().trim());
+  }
+
+  private static Map<String, ComposeServiceSpec> parseComposeServices(String composeYaml) {
+    LoaderOptions opts = new LoaderOptions();
+    opts.setCodePointLimit(1_000_000);
+    opts.setMaxAliasesForCollections(50);
+    Yaml yaml = new Yaml(new SafeConstructor(opts));
+
+    final Object loaded;
+    try {
+      loaded = yaml.load(composeYaml);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("composeYaml must be valid YAML");
+    }
+
+    if (!(loaded instanceof Map<?, ?> root)) {
+      return Map.of();
+    }
+
+    Object servicesObj = root.get("services");
+    if (!(servicesObj instanceof Map<?, ?> services)) {
+      return Map.of();
+    }
+
+    Map<String, ComposeServiceSpec> out = new LinkedHashMap<>();
+    for (var entry : services.entrySet()) {
+      if (!(entry.getKey() instanceof String serviceName)) {
+        continue;
+      }
+      Object rawSpec = entry.getValue();
+      if (!(rawSpec instanceof Map<?, ?> specMap)) {
+        out.put(serviceName, new ComposeServiceSpec(null, false));
+        continue;
+      }
+
+      Object imageObj = specMap.get("image");
+      String imageRef = imageObj instanceof String s && !s.isBlank() ? s.trim() : null;
+
+      boolean hasBuild = specMap.get("build") != null;
+
+      out.put(serviceName, new ComposeServiceSpec(imageRef, hasBuild));
+    }
+
+    return out;
+  }
+
+  private ComposeConfigScan bestEffortComposeConfigScan(String composeYaml) {
+    try {
+      ConfigScanResult result = scanClient.scanDockerCompose(composeYaml);
+      return toComposeConfigScan(result);
+    } catch (Exception ex) {
+      return new ComposeConfigScan(0, 0, Map.of(), List.of(), null, ex.getMessage());
+    }
+  }
+
+  private static ComposeConfigScan toComposeConfigScan(ConfigScanResult result) {
+    if (result == null) {
+      return new ComposeConfigScan(0, 0, Map.of(), List.of(), null, "Empty config scan result");
+    }
+
+    Map<String, Integer> severity =
+        result.summary() != null ? safeMap(result.summary().severity()) : Map.of();
+    int total = result.summary() != null ? result.summary().total() : 0;
+    int score = configRiskScore(severity);
+
+    List<ComposeConfigFinding> findings =
+        result.findings() == null
+            ? List.of()
+            : result.findings().stream()
+                .filter(Objects::nonNull)
+                .limit(50)
+                .map(
+                    f ->
+                        new ComposeConfigFinding(
+                            f.id(),
+                            f.title(),
+                            f.message(),
+                            f.severity(),
+                            f.primaryUrl(),
+                            f.resource(),
+                            f.startLine(),
+                            f.endLine()))
+                .toList();
+
+    return new ComposeConfigScan(score, total, severity, findings, result.scannerVersion(), null);
+  }
+
+  private static int configRiskScore(Map<String, Integer> bySeverity) {
+    if (bySeverity == null || bySeverity.isEmpty()) {
+      return 0;
+    }
+
+    int critical = bySeverity.getOrDefault("CRITICAL", 0);
+    int high = bySeverity.getOrDefault("HIGH", 0);
+    int medium = bySeverity.getOrDefault("MEDIUM", 0);
+    int low = bySeverity.getOrDefault("LOW", 0);
+    int unknown = bySeverity.getOrDefault("UNKNOWN", 0);
+
+    long raw = 0L;
+    raw += (long) critical * 25;
+    raw += (long) high * 15;
+    raw += (long) medium * 8;
+    raw += (long) low * 3;
+    raw += (long) unknown;
+
+    return (int) Math.min(100L, raw);
+  }
+
+  private static Map<String, Integer> safeMap(Map<String, Integer> in) {
+    if (in == null || in.isEmpty()) {
+      return Map.of();
+    }
+
+    Map<String, Integer> out = new LinkedHashMap<>();
+    for (var e : in.entrySet()) {
+      if (e.getKey() == null || e.getKey().isBlank() || e.getValue() == null) {
+        continue;
+      }
+      out.put(e.getKey().trim().toUpperCase(Locale.ROOT), Math.max(0, e.getValue()));
+    }
+    return out;
   }
 
   private List<Citation> semanticCitationsFor(

@@ -19,6 +19,9 @@ public class CveStoreClientImpl implements CveStoreClient {
   private final String byIdPath;
   private final String epssPath;
   private final String listPath;
+  private final String batchPath;
+
+  private static final int BATCH_SIZE = 200;
 
   public CveStoreClientImpl(
       @Qualifier("cveStoreWebClient") WebClient cveStoreWebClient,
@@ -29,6 +32,7 @@ public class CveStoreClientImpl implements CveStoreClient {
     this.byIdPath = byIdPath;
     this.epssPath = epssPath;
     this.listPath = resolveListPath(byIdPath, configuredListPath);
+    this.batchPath = this.listPath + "/batch";
   }
 
   // --------------------- helpers ---------------------
@@ -115,7 +119,12 @@ public class CveStoreClientImpl implements CveStoreClient {
       return null;
     }
 
-    var epss = fetchLatestEpss(cveId).orElse(null);
+    // Prefer the flattened EPSS fields on CveEntryDto; fall back to the /epss endpoint only if
+    // absent.
+    EpssScoreDto epss =
+        (base.getEpssScore() != null || base.getEpssPercentile() != null)
+            ? null
+            : fetchLatestEpss(cveId).orElse(null);
     return toEmbedding(base, epss);
   }
 
@@ -126,7 +135,57 @@ public class CveStoreClientImpl implements CveStoreClient {
       return map;
     }
 
-    for (var id : cveIds) {
+    List<String> ids =
+        cveIds.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .distinct()
+            .toList();
+    if (ids.isEmpty()) {
+      return map;
+    }
+
+    // Fast path: batch endpoint (preferred for performance).
+    try {
+      for (int i = 0; i < ids.size(); i += BATCH_SIZE) {
+        List<String> batch = ids.subList(i, Math.min(i + BATCH_SIZE, ids.size()));
+
+        CveEntryDto[] arr =
+            cveWebClient
+                .post()
+                .uri(batchPath)
+                .bodyValue(batch)
+                .retrieve()
+                .bodyToMono(CveEntryDto[].class)
+                .block();
+
+        if (arr == null || arr.length == 0) {
+          continue;
+        }
+
+        for (CveEntryDto dto : arr) {
+          if (dto == null || dto.getCveId() == null || dto.getCveId().isBlank()) {
+            continue;
+          }
+          var mapped = toEmbedding(dto, null);
+          if (mapped != null) {
+            map.put(dto.getCveId(), mapped);
+          }
+        }
+      }
+
+      if (!map.isEmpty()) {
+        return map;
+      }
+    } catch (WebClientResponseException.NotFound | WebClientResponseException.MethodNotAllowed ex) {
+      // older cve-store versions may not expose /batch; fall back to per-id requests.
+    } catch (Exception ignored) {
+      // best-effort: fall back below
+    }
+
+    // Slow fallback: per-id requests.
+    for (var id : ids) {
       try {
         var cve = getById(id);
         if (cve != null) {

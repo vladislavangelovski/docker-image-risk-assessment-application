@@ -20,6 +20,7 @@ import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import { PageHeader } from "../components/PageHeader";
 import { api } from "../api/client";
 import type { Page as PageResponse, CveEntry } from "../api/types";
@@ -65,6 +66,8 @@ export function Dashboard() {
     switch (kind) {
       case "ASSESS_IMAGE":
         return <ShieldRoundedIcon />;
+      case "ASSESS_COMPOSE":
+        return <DescriptionRoundedIcon />;
       case "QA_QUESTION":
         return <PsychologyIcon />;
       case "QA_CLAIM":
@@ -93,6 +96,9 @@ export function Dashboard() {
               to="/assess"
             >
               New assessment
+            </Button>
+            <Button variant="outlined" startIcon={<DescriptionRoundedIcon />} component={Link} to="/assess/compose">
+              Compose scan
             </Button>
             <Button variant="outlined" startIcon={<PsychologyIcon />} component={Link} to="/qa">
               New question

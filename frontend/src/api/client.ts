@@ -1,6 +1,8 @@
 import type {
   AssessImageRequest,
   AssessImageResponse,
+  AssessComposeRequest,
+  AssessComposeResponse,
   CveEntry,
   EmbeddingsIndexRequest,
   EmbeddingsIndexResponse,
@@ -86,6 +88,11 @@ async function requestJson<T>(
 export const api = {
   assessImage: (payload: AssessImageRequest) =>
     requestJson<AssessImageResponse>("/api/v1/assess/image", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  assessCompose: (payload: AssessComposeRequest) =>
+    requestJson<AssessComposeResponse>("/api/v1/assess/compose", {
       method: "POST",
       body: JSON.stringify(payload)
     }),

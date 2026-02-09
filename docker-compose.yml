@@ -121,6 +121,7 @@ services:
       timeout: 5s
       retries: 5
     environment:
+      TRIVY_CACHE_DIR: /var/cache/trivy
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/riskdb"
@@ -134,6 +135,8 @@ services:
       POSTGRES_DB: "riskdb"
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - trivy-cache:/var/cache/trivy
     depends_on:
       - postgres
       - redis
@@ -250,3 +253,4 @@ volumes:
   keycloak-dbdata:
   redis-data:
   ollama-models:
+  trivy-cache:

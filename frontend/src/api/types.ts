@@ -32,6 +32,47 @@ export interface AssessImageResponse {
   citations?: Citation[];
 }
 
+export interface ComposeConfigFinding {
+  id?: string;
+  title?: string;
+  message?: string;
+  severity?: string;
+  primaryUrl?: string;
+  resource?: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+export interface ComposeConfigScan {
+  riskScore?: number;
+  totalFindings?: number;
+  severity?: Record<string, number>;
+  findings?: ComposeConfigFinding[];
+  scannerVersion?: string;
+  error?: string;
+}
+
+export interface ComposeServiceAssessment {
+  serviceName?: string;
+  imageRef?: string;
+  assessment?: AssessImageResponse;
+  error?: string;
+}
+
+export interface AssessComposeRequest {
+  composeYaml: string;
+  k?: number;
+  scanImages?: boolean;
+}
+
+export interface AssessComposeResponse {
+  overallRisk?: number;
+  band?: RiskBand;
+  services?: ComposeServiceAssessment[];
+  configScan?: ComposeConfigScan;
+  explanation?: string;
+}
+
 export interface QaQuestionRequest {
   question: string;
   imageRef?: string;

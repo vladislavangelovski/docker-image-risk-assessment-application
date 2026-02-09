@@ -55,25 +55,27 @@ public class WebClientConfig {
 
   @Bean
   public WebClient scanWebClient(@Value("${services.scan.base-url}") String baseUrl) {
-    return baseWebClientBuilder(2 * 1024 * 1024).baseUrl(baseUrl).build();
+    // IMPORTANT: scanning endpoints are long-running and expensive (Trivy). Do not auto-retry them,
+    // or we end up repeating multi-minute scans and timing out at the gateway.
+    return baseWebClientBuilder(2 * 1024 * 1024, false).baseUrl(baseUrl).build();
   }
 
   @Bean
   public WebClient cveStoreWebClient(@Value("${services.cvestore.base-url}") String baseUrl) {
-    return baseWebClientBuilder(4 * 1024 * 1024).baseUrl(baseUrl).build();
+    return baseWebClientBuilder(4 * 1024 * 1024, true).baseUrl(baseUrl).build();
   }
 
   @Bean("embeddingsWebClient")
   public WebClient embeddingsWebClient(@Value("${embeddings.base-url}") String baseUrl) {
     HttpClient httpClient = HttpClient.create().responseTimeout(Duration.ofSeconds(180));
 
-    return baseWebClientBuilder(16 * 1024 * 1024)
+    return baseWebClientBuilder(16 * 1024 * 1024, true)
         .clientConnector(new ReactorClientHttpConnector(httpClient))
         .baseUrl(baseUrl)
         .build();
   }
 
-  private WebClient.Builder baseWebClientBuilder(int maxInMemoryBytes) {
+  private WebClient.Builder baseWebClientBuilder(int maxInMemoryBytes, boolean enableRetry) {
     HttpClient httpClient =
         HttpClient.create()
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMs)
@@ -92,7 +94,12 @@ public class WebClientConfig {
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(maxInMemoryBytes))
                 .build())
         .filter(requestIdFilter())
-        .filter(retryFilter());
+        .filters(
+            filters -> {
+              if (enableRetry) {
+                filters.add(retryFilter());
+              }
+            });
   }
 
   private ExchangeFilterFunction retryFilter() {
