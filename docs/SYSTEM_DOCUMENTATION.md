@@ -22,7 +22,7 @@ The application assesses the risk of Docker/container images by combining:
    - Exploit Prediction Scoring System (EPSS)
 3) Risk scoring and AI-assisted explanations:
    - Image risk summary (score + band + top findings)
-   - RAG-style question answering and claim evaluation with citations
+   - RAG-style follow-up question answering with citations
 
 The "contract boundary" is the `gateway-service`. External clients and the `frontend` call the
 gateway only.
@@ -68,14 +68,12 @@ The system is a multi-service application with these major components:
   - RAG QA workflow:
     - Retrieves relevant CVEs via vector search (pgvector)
     - Calls an LLM via Spring AI (Ollama) using prompt templates stored in repo
-    - Returns answer/verdict with citations
+    - Returns answer with citations
     - Optionally restricts QA to CVEs present in a scanned image
   - Embeddings indexing:
     - Fetches CVEs from `cve-store-service`
     - Creates embeddings via Ollama
     - Stores embeddings in Postgres table `cve_embeddings` (pgvector)
-  - QA history persistence:
-    - Stores user prompts and model output in `qa_chat_history` table
 
 - `common` (library jar)
   - Shared DTOs used across services (e.g. assessment + QA request/response types)
@@ -134,17 +132,21 @@ Image assessment (`frontend` or any client -> `gateway`):
 6) `ai-service` computes overall score + risk band + top findings
 7) response returns to client via gateway
 
-QA question/claim (`frontend` or any client -> `gateway`):
+QA question (`frontend` or any client -> `gateway`):
 
-1) `POST /api/v1/qa/question` or `/api/v1/qa/claim` (gateway)
-2) gateway rewrites to `ai-service` `/api/qa/question|claim`
+1) `POST /api/v1/qa/question` (gateway)
+2) gateway rewrites to `ai-service` `/api/qa/question`
 3) `ai-service`:
    - if `imageRef` present, obtains scan findings and restricts QA to those CVEs
    - auto-indexes missing embeddings for those CVEs (best-effort)
    - performs vector search over `cve_embeddings`
    - calls chat model via Spring AI (Ollama) with prompt templates + evidence context
-   - stores QA history in Postgres (`qa_chat_history`) if user identity is known
-4) response returns to client via gateway (citations included)
+   - appends user/assistant turns to server-side conversation history
+4) response returns to client via gateway (citations + `conversationId`)
+
+QA history (assessment follow-up chat):
+- `GET /api/v1/qa/history?chatScopeId=...&limit=...` returns saved conversations + turns for the current user and scope
+- `DELETE /api/v1/qa/history/{conversationId}` deletes one saved conversation (messages cascade)
 
 ---
 
@@ -395,17 +397,26 @@ Defined and/or ensured by migration `cve-store-service/src/main/resources/db/mig
 
 This allows fast semantic retrieval of relevant CVEs for QA.
 
-### 6.4 QA history table (public schema)
+### 6.4 QA conversation history tables
 
-Defined by `cve-store-service` migration `V6__qa_chat_history.sql` and written by `ai-service`:
+Defined by `cve-store-service` migration `V7__qa_conversation_history.sql`:
 
-- `qa_chat_history`
-  - user identity: `user_id`, `user_name`
-  - request: `chat_type` (QUESTION/CLAIM), `prompt`, optional `image_ref`, optional `top_k`
-  - response: `response_json` (text)
-  - `created_at` timestamp
+- `qa_chat_conversations`
+  - identity/scope: `conversation_id` (UUID PK), `user_id`, optional `user_name`, `chat_scope_id`
+  - context: optional `image_ref`, `title`
+  - timestamps: `created_at`, `updated_at`
+  - indexes:
+    - `(user_id, chat_scope_id, updated_at DESC)` for assessment-scope history loading
+    - `(user_id, updated_at DESC)` for recency listing
 
-Storing the serialized response JSON preserves the evidence and citations returned to the user.
+- `qa_chat_messages`
+  - `message_id` (PK), FK `conversation_id` -> `qa_chat_conversations` (cascade delete)
+  - message fields: `role` (`user` or `assistant`), `content`, optional `citations_json`
+  - timestamp: `created_at`
+  - index: `(conversation_id, created_at ASC, message_id ASC)`
+
+Legacy table note:
+- `qa_chat_history` from `V6__qa_chat_history.sql` remains in older environments but is not used by the current follow-up chat flow.
 
 ---
 
@@ -475,8 +486,8 @@ ai-service:
   - `GET /api/assess/ping` - returns "ok" (simple check)
 - QA:
   - `POST /api/qa/question` - returns `QaQuestionResponse`
-  - `POST /api/qa/claim` - returns `QaClaimResponse`
-  - `GET /api/qa/history?limit=...` - returns `List<QaChatHistoryItem>`
+  - `GET /api/qa/history?chatScopeId=...&limit=...` - returns conversation history for current user + scope
+  - `DELETE /api/qa/history/{conversationId}` - deletes a saved conversation for current user
 - Embeddings admin:
   - `POST /api/admin/embeddings/index` - index next batch or explicit `cveIds`
   - `GET /api/admin/embeddings/search?q=...&k=...` - embeds query and searches vector store
@@ -522,7 +533,7 @@ Gateway injects/propagates:
   - Derived from the authenticated principal/JWT when security is enabled
   - Added/cleared on every request (`UserContextFilter`)
 
-These headers are consumed by `ai-service` to store QA history against a user identity.
+These headers are available for downstream identity-aware behavior.
 
 ### 8.3 Error normalization
 
@@ -849,23 +860,24 @@ Why this design:
 
 - pgvector allows you to keep the vector index and relational data in one Postgres deployment.
 - The combined score is a pragmatic signal blend:
-  - semantic similarity finds relevant CVEs to the question/claim
+  - semantic similarity finds relevant CVEs to the question
   - EPSS and CVSS bias the ranking toward "important" CVEs among those relevant
 
-### 11.4 QA: questions and claims
+### 11.4 QA: follow-up questions
 
 Endpoints (gateway exposes `/api/v1/qa/...`):
 
 - `POST /api/qa/question` (answer a question)
-- `POST /api/qa/claim` (judge a claim as SUPPORTS/REFUTES/INSUFFICIENT)
+- `GET /api/qa/history` (load saved conversations by assessment scope)
+- `DELETE /api/qa/history/{conversationId}` (delete one saved conversation)
 
 Core pattern:
 
 1) Retrieve evidence (top semantic hits from embeddings)
 2) Build an evidence text block (CVE IDs + title + truncated description + scores + packages)
-3) Call the chat model with a strict prompt template
+3) Call the chat model with assessment-enriched prompt context
 4) Return answer + citations
-5) Save history if user identity is present
+5) Persist user/assistant messages in DB-backed conversation history
 
 Image-aware QA:
 
@@ -877,31 +889,11 @@ Image-aware QA:
 Prompt templates:
 
 - Stored under `ai-service/src/main/resources/prompts/*.txt` and loaded at startup.
-- They enforce non-hallucination and grounding:
-  - "use only <cve_context> and <image_context>"
-  - "do not invent CVEs/packages/versions"
-  - claims require STRICT JSON output from the model
-
-Guardrails for claims:
-
-- `SemanticClaimService` adds rule-based post-processing, for example:
-  - if the claim is a "presence claim" and the image scan includes the mentioned CVE, it forces
-    SUPPORTS with a grounded rationale
-  - if a claim asserts high exploitability likelihood but evidence lacks exploitability signals,
-    it downgrades to INSUFFICIENT
+- They enforce evidence-first grounding, then allow explicit "general guidance" beyond context.
 
 Why this approach:
 
-- The prompts aim for deterministic, evidence-grounded outputs in a security context.
-- Guardrails correct a common LLM failure mode: making confident statements that are not grounded.
-
-### 11.5 QA history
-
-ai-service records QA history in Postgres:
-
-- user identity is derived from gateway-provided headers (when logged in via Keycloak)
-- responses are stored as JSON strings in `qa_chat_history.response_json`
-- history retrieval is `GET /api/qa/history?limit=...`
+- The prompts aim for practical, evidence-grounded outputs in a security context.
 
 ---
 
@@ -911,7 +903,7 @@ ai-service records QA history in Postgres:
 
 - DTOs (records/classes) used as cross-service API contracts:
   - assessment: `AssessImageRequest`, `AssessImageResponse`, `TopFinding`, `RiskBand`, `Citation`
-  - QA: `QaQuestionRequest/Response`, `QaClaimRequest/Response`, `QaChatHistoryItem`, `Verdict`
+  - QA: `QaQuestionRequest/Response`
   - CVE/EPSS: `CveEntryDto`, `EpssScoreDto`, `CveForEmbedding`
 
 - Shared error model:
@@ -971,7 +963,7 @@ Why this matters:
 The UI uses typed fetch wrappers in `frontend/src/api/client.ts` and calls only:
 
 - `/api/v1/assess/image`
-- `/api/v1/qa/question`, `/api/v1/qa/claim`, `/api/v1/qa/history`
+- `/api/v1/qa/question`
 - `/api/v1/cves`, `/api/v1/cves/{id}`, `/api/v1/cves/{id}/epss`
 - `/api/v1/scans/...`
 - `/api/v1/admin/embeddings/...` (admin UI)
@@ -1126,4 +1118,3 @@ Frontend:
 
 CI:
 - `.github/workflows/ci.yml`
-

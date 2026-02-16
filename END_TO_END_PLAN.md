@@ -31,7 +31,7 @@ Legend:
 - [ ] Revisit functional requirements: scan images, ingest CVE/EPSS, RAG QA (beyond `ROADMAP.md`/`README.md`)
 - [ ] Revisit non-functional requirements: performance, scalability, security, reliability, cost (beyond `ROADMAP.md`)
 - [ ] Draft minimal API spec (gateway-first) as a stable external contract
-  - [x] claim/question in → summary + evidence out (gateway: `POST /api/v1/qa/*`, downstream: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
+  - [x] question in → summary + evidence out (gateway: `POST /api/v1/qa/question`, downstream: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
   - [x] assess image in → risk summary + findings out (gateway: `POST /api/v1/assess/image`, downstream: `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/AssessmentController.java`)
 - [ ] API versioning + deprecation policy (keep `/api/v1` stable; define how aliases are deprecated)
 - [x] Tech-stack confirmation: Java 21 + Spring Boot 3.x (see `pom.xml`)
@@ -72,9 +72,9 @@ Legend:
 
 ## Phase 5 – ai-service (RAG)
 - [x] Embedding generation + vector store (pgvector) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/indexing/EmbeddingIndexService.java`)
-- [x] Ingest CVE descriptions + EPSS into embeddings (indexing exists; can be triggered via admin endpoint, and image-based QA/claim auto-indexes scan CVEs on demand) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
+- [x] Ingest CVE descriptions + EPSS into embeddings (indexing exists; can be triggered via admin endpoint, and image-based QA auto-indexes scan CVEs on demand) (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
 - [x] QA pipeline: retrieval → prompt → LLM → answer + evidence (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/qa`)
-- [x] Endpoints exposed: `/qa/claim` and `/qa/question` (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
+- [x] Endpoint exposed: `/qa/question` (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/QaController.java`)
 - [x] Admin endpoints for indexing + semantic search (see `ai-service/src/main/java/com/finki/vladislavangelovski/ai_service/api/EmbeddingsAdminController.java`)
 - [x] Deterministic prompt templates stored in resources
 - [x] “Evidence always returned” guarantee via CVE-store fallback when embeddings are sparse

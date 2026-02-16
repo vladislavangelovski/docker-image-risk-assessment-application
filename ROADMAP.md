@@ -1,10 +1,10 @@
 # Docker Image Risk Assessment Application — Project Roadmap (Java 21)
 
 ## Phase 0 – Define & Align Requirements & Scope
-- Revisit functional requirements: scan images, ingest CVE/EPSS, RAG QA (claim + question)
+- Revisit functional requirements: scan images, ingest CVE/EPSS, RAG QA follow-up (question)
 - Revisit non-functional requirements: performance, scalability, security, reliability, cost
 - Draft minimal API spec:
-  - claim/question in → summary + evidence out
+  - question in → summary + evidence out
   - assess image in → risk summary + findings out
 - Tech-stack confirmation: **Java 21 + Spring Boot 3.x**, Maven multi-module
 - Modules: common, cve-store-service, scan-service, ai-service, gateway-service
@@ -42,7 +42,6 @@
 - Ingest CVE descriptions + EPSS (and optionally CVSS) into embeddings
 - Build QA pipeline: retrieval → prompt → LLM → answer + summarization + evidence
 - Expose endpoints for:
-  - `/qa/claim`
   - `/qa/question`
 - Add admin endpoints for embeddings indexing + semantic search (for demo/debug)
 
@@ -63,9 +62,9 @@
 - Config: `VITE_API_BASE_URL`
 
 ### 7.2 Core screens (MVP)
-- Dashboard: quick assess + quick QA + recent history
+- Dashboard: quick assess + follow-up QA entry + recent history
 - Image Risk Assessment: imageRef → score/band → top findings + evidence + export JSON
-- QA: claim/question toggle → answer + evidence + retrieved items (if available)
+- QA: follow-up question chat in assessment views → answer + evidence + retrieved items (if available)
 - CVE Lookup: CVE details + EPSS + references + raw JSON
 
 ### 7.3 Optional high-value screens
