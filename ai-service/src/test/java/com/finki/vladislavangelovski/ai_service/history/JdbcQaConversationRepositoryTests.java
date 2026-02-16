@@ -77,7 +77,11 @@ class JdbcQaConversationRepositoryTests {
     QaQuestionResponse response =
         new QaQuestionResponse(
             "Prioritize critical CVEs first.",
-            List.of(new Citation("CVE-2021-44228", "https://nvd.nist.gov/vuln/detail/CVE-2021-44228", "Evidence")),
+            List.of(
+                new Citation(
+                    "CVE-2021-44228",
+                    "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+                    "Evidence")),
             List.of("CVE-2021-44228"),
             List.of("log4j"));
 
@@ -111,13 +115,7 @@ class JdbcQaConversationRepositoryTests {
     repository.appendQuestionExchange(
         userContext,
         new QaQuestionRequest(
-            "Question two",
-            "nginx:1.25",
-            6,
-            "ctx",
-            List.of(),
-            "image|nginx:1.25",
-            conversationId),
+            "Question two", "nginx:1.25", 6, "ctx", List.of(), "image|nginx:1.25", conversationId),
         new QaQuestionResponse("Answer two", List.of(), List.of(), List.of()));
 
     List<QaConversationHistoryItem> history =

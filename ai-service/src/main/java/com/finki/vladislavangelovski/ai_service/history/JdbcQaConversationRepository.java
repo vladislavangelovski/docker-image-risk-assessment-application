@@ -13,9 +13,9 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,7 +223,8 @@ public class JdbcQaConversationRepository implements QaConversationRepository {
     return deleted > 0;
   }
 
-  private void appendMessage(UUID conversationId, String role, String content, String citationsJson) {
+  private void appendMessage(
+      UUID conversationId, String role, String content, String citationsJson) {
     jdbc.update(
         INSERT_MESSAGE_SQL,
         ps -> {
@@ -238,7 +239,8 @@ public class JdbcQaConversationRepository implements QaConversationRepository {
         });
   }
 
-  private UUID findExistingConversationId(String userId, String conversationIdRaw, String chatScopeId) {
+  private UUID findExistingConversationId(
+      String userId, String conversationIdRaw, String chatScopeId) {
     UUID requested = parseUuid(conversationIdRaw);
     if (requested == null) {
       return null;
@@ -262,7 +264,8 @@ public class JdbcQaConversationRepository implements QaConversationRepository {
     return ids.get(0);
   }
 
-  private Map<UUID, List<QaConversationMessage>> findMessagesByConversationIds(List<UUID> conversationIds) {
+  private Map<UUID, List<QaConversationMessage>> findMessagesByConversationIds(
+      List<UUID> conversationIds) {
     if (conversationIds == null || conversationIds.isEmpty()) {
       return Map.of();
     }
@@ -400,5 +403,10 @@ public class JdbcQaConversationRepository implements QaConversationRepository {
       Instant updatedAt) {}
 
   private record QaConversationMessageRow(
-      Long id, UUID conversationId, String role, String content, String citationsJson, Instant createdAt) {}
+      Long id,
+      UUID conversationId,
+      String role,
+      String content,
+      String citationsJson,
+      Instant createdAt) {}
 }

@@ -26,7 +26,11 @@ public record QaQuestionRequest(
   }
 
   public QaQuestionRequest(
-      String question, String imageRef, Integer k, String assessmentContext, List<QaChatTurn> chatHistory) {
+      String question,
+      String imageRef,
+      Integer k,
+      String assessmentContext,
+      List<QaChatTurn> chatHistory) {
     this(question, imageRef, k, assessmentContext, chatHistory, null, null);
   }
 }

@@ -16,7 +16,8 @@ public final class QaUserContextResolver {
     }
 
     String resolvedName = firstNonBlank(userName, userEmail);
-    return new QaUserContext(resolvedUserId.trim(), StringUtils.hasText(resolvedName) ? resolvedName.trim() : null);
+    return new QaUserContext(
+        resolvedUserId.trim(), StringUtils.hasText(resolvedName) ? resolvedName.trim() : null);
   }
 
   private static String firstNonBlank(String... values) {

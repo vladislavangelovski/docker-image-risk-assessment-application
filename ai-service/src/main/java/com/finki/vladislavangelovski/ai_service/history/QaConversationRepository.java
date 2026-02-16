@@ -9,7 +9,8 @@ public interface QaConversationRepository {
   String appendQuestionExchange(
       QaUserContext userContext, QaQuestionRequest request, QaQuestionResponse response);
 
-  List<QaConversationHistoryItem> findRecentConversations(String userId, String chatScopeId, int limit);
+  List<QaConversationHistoryItem> findRecentConversations(
+      String userId, String chatScopeId, int limit);
 
   boolean deleteConversation(String userId, String conversationId);
 }
