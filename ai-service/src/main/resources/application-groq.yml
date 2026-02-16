@@ -1,0 +1,12 @@
+spring:
+  ai:
+    model:
+      chat: openai
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: ${GROQ_CHAT_MODEL:llama-3.3-70b-versatile}
+          temperature: 0.0
+

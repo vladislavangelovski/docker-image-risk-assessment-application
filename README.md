@@ -95,6 +95,16 @@ QA note:
 - For semantic-only queries without an `imageRef`, you can pre-index using `POST /api/v1/admin/embeddings/index`.
 - The default Ollama chat model is configured in `ai-service/src/main/resources/application.yml`. First QA request can be slow if the model has to be pulled or is cold-starting.
 
+### Groq (fast hosted chat) instead of Ollama
+The AI service can use Groq (OpenAI-compatible) for **chat** while keeping Ollama for **embeddings**.
+
+1. Set env vars (e.g. in `.env`):
+   - `AI_SERVICE_PROFILES=dev,groq`
+   - `GROQ_API_KEY=<your_groq_api_key>`
+   - Optional: `GROQ_CHAT_MODEL=llama-3.1-8b-instant` (default is `llama-3.3-70b-versatile`)
+2. Restart the stack (or just `ai-service`):
+   - `docker compose up -d --build ai-service`
+
 ## Dev seed data strategy
 Use a small, reproducible dataset for local demos instead of the full NVD/EPSS feed.
 

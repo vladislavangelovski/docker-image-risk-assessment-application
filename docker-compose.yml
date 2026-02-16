@@ -167,7 +167,7 @@ services:
       ollama:
         condition: service_started
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${AI_SERVICE_PROFILES:-dev}
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/riskdb"
       SPRING_DATASOURCE_USERNAME: "${POSTGRES_USER}"
       SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -204,6 +204,10 @@ services:
 
       # === chat model (Spring AI Ollama) ===
       SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL: "${OLLAMA_CHAT_MODEL:-llama3.2:3b-instruct-q4_K_M}"
+
+      # === chat model (Spring AI OpenAI-compatible -> Groq) ===
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      GROQ_CHAT_MODEL: "${GROQ_CHAT_MODEL:-llama-3.3-70b-versatile}"
 
   gateway-service:
     build:

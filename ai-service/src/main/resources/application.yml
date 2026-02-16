@@ -54,6 +54,12 @@ spring:
   ai:
     model:
       chat: ollama
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
     ollama:
       base-url: http://ollama:11434
       chat:
