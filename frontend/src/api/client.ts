@@ -125,6 +125,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  qaHistoryAll: (limit = 20) =>
+    requestJson<QaConversationHistoryItem[]>(`/api/v1/qa/history?limit=${limit}`),
   qaHistory: (chatScopeId: string, limit = 20) =>
     requestJson<QaConversationHistoryItem[]>(
       `/api/v1/qa/history?chatScopeId=${encodeURIComponent(chatScopeId)}&limit=${limit}`

@@ -153,6 +153,15 @@ export function AssessmentFollowUpChat({
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const endRef = React.useRef<HTMLDivElement | null>(null);
+  const [effectiveChatScopeId, setEffectiveChatScopeId] = React.useState(chatScopeId);
+
+  React.useEffect(() => {
+    if (chatScopeId === effectiveChatScopeId) {
+      return;
+    }
+    const handle = window.setTimeout(() => setEffectiveChatScopeId(chatScopeId), 350);
+    return () => window.clearTimeout(handle);
+  }, [chatScopeId, effectiveChatScopeId]);
 
   const activeConversation = React.useMemo(() => {
     if (!activeConversationId) {
@@ -165,18 +174,15 @@ export function AssessmentFollowUpChat({
 
   const refreshHistory = React.useCallback(
     async (preferredConversationId?: string, showSpinner = false) => {
-      if (!chatScopeId.trim()) {
-        setConversations([]);
-        setActiveConversationId(null);
-        return;
-      }
-
       if (showSpinner) {
         setHistoryLoading(true);
       }
 
       try {
-        const items = await api.qaHistory(chatScopeId, MAX_CONVERSATIONS_PER_SCOPE);
+        const scope = effectiveChatScopeId.trim();
+        const items = scope
+          ? await api.qaHistory(scope, MAX_CONVERSATIONS_PER_SCOPE)
+          : await api.qaHistoryAll(MAX_CONVERSATIONS_PER_SCOPE);
         const mapped = mapHistoryItems(items || []);
         setConversations(mapped);
         setActiveConversationId((current) => {
@@ -196,7 +202,7 @@ export function AssessmentFollowUpChat({
         }
       }
     },
-    [chatScopeId]
+    [effectiveChatScopeId]
   );
 
   React.useEffect(() => {
@@ -205,7 +211,7 @@ export function AssessmentFollowUpChat({
     setDraft("");
     setError(null);
     void refreshHistory(undefined, true);
-  }, [chatScopeId, refreshHistory]);
+  }, [effectiveChatScopeId, refreshHistory]);
 
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -229,7 +235,7 @@ export function AssessmentFollowUpChat({
         k: FOLLOW_UP_K,
         assessmentContext: normalizeContext(assessmentContext),
         chatHistory: toChatHistory(activeMessages),
-        chatScopeId,
+        chatScopeId: chatScopeId.trim() || undefined,
         conversationId: selectedConversationId || undefined
       });
 

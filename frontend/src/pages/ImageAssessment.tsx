@@ -93,6 +93,14 @@ function buildImageChatScopeId(result: AssessImageResponse): string {
   return `image|${normalizedImageRef || "unknown"}`;
 }
 
+function buildImageChatScopeIdFromImageRef(imageRef: string): string {
+  const normalized = (imageRef || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  return `image|${normalized}`;
+}
+
 export function ImageAssessment() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [imageRef, setImageRef] = React.useState(searchParams.get("imageRef") || "");
@@ -199,6 +207,15 @@ export function ImageAssessment() {
           </Stack>
         </Box>
       </Paper>
+
+      <Box>
+        <AssessmentFollowUpChat
+          chatScopeId={result ? buildImageChatScopeId(result) : buildImageChatScopeIdFromImageRef(imageRef)}
+          assessmentContext={result ? buildImageAssessmentContext(result) : ""}
+          imageRef={imageRef}
+          title="Assessment follow-up chat"
+        />
+      </Box>
 
       {result && (
         <Paper className="section-card">
@@ -388,15 +405,6 @@ export function ImageAssessment() {
                 </Stack>
               </Paper>
             )}
-
-            <Box>
-              <AssessmentFollowUpChat
-                chatScopeId={buildImageChatScopeId(result)}
-                assessmentContext={buildImageAssessmentContext(result)}
-                imageRef={result.imageRef}
-                title="Assessment follow-up chat"
-              />
-            </Box>
 
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>

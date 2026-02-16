@@ -288,6 +288,14 @@ export function ComposeAssessment() {
         </Box>
       </Paper>
 
+      <Box>
+        <AssessmentFollowUpChat
+          chatScopeId={composeYaml.trim() ? chatScopeId || buildComposeChatScopeId(composeYaml) : ""}
+          assessmentContext={result ? buildComposeAssessmentContext(result) : ""}
+          title="Compose follow-up chat"
+        />
+      </Box>
+
       {result && (
         <Paper className="section-card">
           <Stack spacing={2} sx={{ p: 3 }}>
@@ -518,14 +526,6 @@ export function ComposeAssessment() {
                 </Paper>
               </Grid>
             </Grid>
-
-            <Box>
-              <AssessmentFollowUpChat
-                chatScopeId={chatScopeId || buildComposeChatScopeId(composeYaml)}
-                assessmentContext={buildComposeAssessmentContext(result)}
-                title="Compose follow-up chat"
-              />
-            </Box>
 
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
