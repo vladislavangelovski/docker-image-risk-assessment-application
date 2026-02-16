@@ -1,6 +1,14 @@
 User question:
 %s
 
+<assessment_context>
+%s
+</assessment_context>
+
+<conversation_history>
+%s
+</conversation_history>
+
 <cve_context>
 %s
 </cve_context>
@@ -14,7 +22,8 @@ Packages per CVE (if any):
 </image_context>
 
 Now:
-1. Answer the question using ONLY the information from <cve_context> and <image_context>.
-2. If the question asks about a CVE not present in this context, explicitly say
-   that you have no evidence about that CVE in the current context.
-3. Explain the risk in 2-4 bullet points, focused on container / DevOps impact.
+1. Answer the latest user question first, then give concrete remediation suggestions.
+2. Use <assessment_context>, <conversation_history>, <cve_context>, and <image_context> as strong evidence.
+3. You may add broader security guidance, but label it as general guidance when it is not directly evidenced by context.
+4. If context evidence is missing for a factual claim, say that explicitly.
+5. Keep the answer to 3-6 concise bullets focused on container and DevOps impact.

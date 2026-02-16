@@ -4,6 +4,7 @@ import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.ai_service.search.VectorSearchService;
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
 import com.finki.vladislavangelovski.common.dto.Citation;
+import com.finki.vladislavangelovski.common.dto.QaChatTurn;
 import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
 import com.finki.vladislavangelovski.common.dto.QaQuestionRequest;
 import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
@@ -21,6 +22,9 @@ public class SemanticQuestionService {
   private static final int RETRIEVAL_K = 20;
   private static final int EVIDENCE_TOP_N = 6;
   private static final int DESCRIPTION_MAX_LEN = 600;
+  private static final int ASSESSMENT_CONTEXT_MAX_LEN = 8_000;
+  private static final int HISTORY_TURNS_MAX = 12;
+  private static final int HISTORY_TURN_MAX_LEN = 1_000;
   private static final Pattern CVE_ID_PATTERN = Pattern.compile("CVE-\\d{4}-\\d{4,}");
 
   private final VectorSearchService vectorSearchService;
@@ -170,6 +174,46 @@ public class SemanticQuestionService {
     return text.substring(0, maxLen - 3) + "...";
   }
 
+  private static String normalizeAssessmentContext(String assessmentContext) {
+    if (assessmentContext == null || assessmentContext.isBlank()) {
+      return "No assessment context provided.";
+    }
+    return truncate(assessmentContext.trim(), ASSESSMENT_CONTEXT_MAX_LEN);
+  }
+
+  private static String formatChatHistory(List<QaChatTurn> history) {
+    if (history == null || history.isEmpty()) {
+      return "No prior chat turns.";
+    }
+
+    int start = Math.max(0, history.size() - HISTORY_TURNS_MAX);
+    StringBuilder sb = new StringBuilder();
+    for (int i = start; i < history.size(); i++) {
+      QaChatTurn turn = history.get(i);
+      if (turn == null || turn.content() == null || turn.content().isBlank()) {
+        continue;
+      }
+
+      String role = turn.role();
+      if (role == null || role.isBlank()) {
+        role = "user";
+      }
+      String normalizedRole = role.trim().toLowerCase(Locale.ROOT);
+      if (!normalizedRole.equals("assistant")) {
+        normalizedRole = "user";
+      }
+
+      String content = truncate(turn.content().trim(), HISTORY_TURN_MAX_LEN);
+      sb.append(normalizedRole).append(": ").append(content).append("\n");
+    }
+
+    if (sb.isEmpty()) {
+      return "No prior chat turns.";
+    }
+
+    return sb.toString().trim();
+  }
+
   public QaQuestionResponse answerQuestion(QaQuestionRequest request) {
     return answer(request, null, null);
   }
@@ -231,6 +275,8 @@ public class SemanticQuestionService {
             Locale.ROOT,
             promptTemplates.questionUser(),
             question,
+            normalizeAssessmentContext(request.assessmentContext()),
+            formatChatHistory(request.chatHistory()),
             evidenceText,
             allowedCvesStr,
             packagesByCveStr);

@@ -9,24 +9,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PromptTemplates {
-  private final String claimSystem;
-  private final String claimUser;
   private final String questionSystem;
   private final String questionUser;
 
   public PromptTemplates(ResourceLoader resourceLoader) {
-    this.claimSystem = load(resourceLoader, "classpath:prompts/claim-system.txt");
-    this.claimUser = load(resourceLoader, "classpath:prompts/claim-user.txt");
     this.questionSystem = load(resourceLoader, "classpath:prompts/question-system.txt");
     this.questionUser = load(resourceLoader, "classpath:prompts/question-user.txt");
-  }
-
-  public String claimSystem() {
-    return claimSystem;
-  }
-
-  public String claimUser() {
-    return claimUser;
   }
 
   public String questionSystem() {

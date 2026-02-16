@@ -3,16 +3,19 @@ package com.finki.vladislavangelovski.ai_service.service.impl;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanClient;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanFinding;
 import com.finki.vladislavangelovski.ai_service.clients.scan.dto.ScanResult;
+import com.finki.vladislavangelovski.ai_service.history.QaConversationHistoryService;
+import com.finki.vladislavangelovski.ai_service.history.QaUserContext;
 import com.finki.vladislavangelovski.ai_service.indexing.EmbeddingIndexService;
-import com.finki.vladislavangelovski.ai_service.qa.SemanticClaimService;
 import com.finki.vladislavangelovski.ai_service.qa.SemanticQuestionService;
 import com.finki.vladislavangelovski.ai_service.service.QaService;
-import com.finki.vladislavangelovski.common.dto.*;
+import com.finki.vladislavangelovski.common.dto.QaQuestionRequest;
+import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class QaServiceImpl implements QaService {
@@ -20,28 +23,31 @@ public class QaServiceImpl implements QaService {
   private static final Logger log = LoggerFactory.getLogger(QaServiceImpl.class);
 
   private final SemanticQuestionService semanticQuestionService;
-  private final SemanticClaimService semanticClaimService;
   private final ScanClient scanClient;
   private final EmbeddingIndexService embeddingIndexService;
+  private final QaConversationHistoryService conversationHistoryService;
 
   public QaServiceImpl(
       SemanticQuestionService semanticQuestionService,
-      SemanticClaimService semanticClaimService,
       ScanClient scanClient,
-      EmbeddingIndexService embeddingIndexService) {
+      EmbeddingIndexService embeddingIndexService,
+      QaConversationHistoryService conversationHistoryService) {
     this.semanticQuestionService = semanticQuestionService;
-    this.semanticClaimService = semanticClaimService;
     this.scanClient = scanClient;
     this.embeddingIndexService = embeddingIndexService;
+    this.conversationHistoryService = conversationHistoryService;
   }
 
   @Override
-  public QaQuestionResponse answerQuestion(QaQuestionRequest request) {
+  public QaQuestionResponse answerQuestion(QaQuestionRequest request, QaUserContext userContext) {
     String imageRef = request.imageRef();
     boolean hasImage = imageRef != null && !imageRef.isBlank();
 
+    QaQuestionResponse semanticResponse;
+
     if (!hasImage) {
-      return semanticQuestionService.answerQuestion(request);
+      semanticResponse = semanticQuestionService.answerQuestion(request);
+      return withConversationPersistence(userContext, request, semanticResponse);
     }
 
     ScanResult scan;
@@ -49,11 +55,13 @@ public class QaServiceImpl implements QaService {
     try {
       scan = scanClient.scanImage(imageRef);
     } catch (Exception e) {
-      return semanticQuestionService.answerQuestion(request);
+      semanticResponse = semanticQuestionService.answerQuestion(request);
+      return withConversationPersistence(userContext, request, semanticResponse);
     }
 
     if (scan == null || scan.findings() == null || scan.findings().isEmpty()) {
-      return semanticQuestionService.answerQuestion(request);
+      semanticResponse = semanticQuestionService.answerQuestion(request);
+      return withConversationPersistence(userContext, request, semanticResponse);
     }
 
     Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
@@ -73,77 +81,24 @@ public class QaServiceImpl implements QaService {
     Set<String> allowedCves = packagesByCve.keySet();
 
     if (allowedCves.isEmpty()) {
-      return semanticQuestionService.answerQuestion(request);
+      semanticResponse = semanticQuestionService.answerQuestion(request);
+      return withConversationPersistence(userContext, request, semanticResponse);
     }
 
     autoIndexCves(allowedCves);
 
-    return semanticQuestionService.answerQuestionForImage(
-        request,
-        allowedCves,
-        packagesByCve.entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    Map.Entry::getKey,
-                    e -> List.copyOf(e.getValue()),
-                    (a, b) -> a,
-                    LinkedHashMap::new)));
-  }
-
-  @Override
-  public QaClaimResponse judge(QaClaimRequest request) {
-    String imageRef = request.imageRef();
-    boolean hasImage = imageRef != null && !imageRef.isBlank();
-
-    if (!hasImage) {
-      return semanticClaimService.judgeClaim(request, null, null, null);
-    }
-
-    ScanResult scan;
-
-    try {
-      scan = scanClient.scanImage(imageRef);
-    } catch (Exception e) {
-      return semanticClaimService.judgeClaim(request, null, null, null);
-    }
-
-    if (scan == null || scan.findings() == null || scan.findings().isEmpty()) {
-      return semanticClaimService.judgeClaim(request, null, null, null);
-    }
-
-    Map<String, List<String>> packagesByCve = new LinkedHashMap<>();
-    for (ScanFinding f : scan.findings()) {
-      if (f == null || f.cveId() == null || f.cveId().isBlank()) continue;
-
-      List<String> pkgs = new ArrayList<>();
-      if (f.packages() != null) {
-        pkgs.addAll(f.packages());
-      }
-      if (f.packageName() != null && !f.packageName().isBlank()) {
-        pkgs.add(f.packageName());
-      }
-      packagesByCve.computeIfAbsent(f.cveId(), id -> new ArrayList<>()).addAll(pkgs);
-    }
-
-    Set<String> allowedCves = packagesByCve.keySet();
-
-    if (allowedCves.isEmpty()) {
-      return semanticClaimService.judgeClaim(request, null, null, null);
-    }
-
-    autoIndexCves(allowedCves);
-
-    Map<String, List<String>> safePackagesByCve =
-        packagesByCve.entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    Map.Entry::getKey,
-                    e -> List.copyOf(e.getValue()),
-                    (a, b) -> a,
-                    LinkedHashMap::new));
-
-    return semanticClaimService.judgeClaim(
-        request, allowedCves, safePackagesByCve, scan.findings());
+    semanticResponse =
+        semanticQuestionService.answerQuestionForImage(
+            request,
+            allowedCves,
+            packagesByCve.entrySet().stream()
+                .collect(
+                    Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> List.copyOf(e.getValue()),
+                        (a, b) -> a,
+                        LinkedHashMap::new)));
+    return withConversationPersistence(userContext, request, semanticResponse);
   }
 
   private void autoIndexCves(Set<String> cveIds) {
@@ -155,5 +110,20 @@ public class QaServiceImpl implements QaService {
     } catch (Exception ex) {
       log.warn("Auto-indexing CVE embeddings failed; continuing without it", ex);
     }
+  }
+
+  private QaQuestionResponse withConversationPersistence(
+      QaUserContext userContext, QaQuestionRequest request, QaQuestionResponse semanticResponse) {
+    String conversationId =
+        conversationHistoryService.recordQuestion(userContext, request, semanticResponse);
+    if (!StringUtils.hasText(conversationId)) {
+      return semanticResponse;
+    }
+    return new QaQuestionResponse(
+        semanticResponse.answer(),
+        semanticResponse.citations(),
+        semanticResponse.usedCves(),
+        semanticResponse.usedPackages(),
+        conversationId);
   }
 }
