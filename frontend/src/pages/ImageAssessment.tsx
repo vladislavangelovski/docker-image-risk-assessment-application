@@ -26,6 +26,7 @@ import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { AssessImageResponse, RiskBand } from "../api/types";
+import { AssessmentFollowUpChat } from "../components/AssessmentFollowUpChat";
 import { PageHeader } from "../components/PageHeader";
 import { JsonPanel } from "../components/JsonPanel";
 import { useRecentActivity } from "../hooks/useRecentActivity";
@@ -43,6 +44,53 @@ function bandColor(band?: RiskBand) {
     default:
       return "default";
   }
+}
+
+function buildImageAssessmentContext(result: AssessImageResponse): string {
+  const lines: string[] = [];
+  lines.push("Assessment type: image");
+  lines.push(`Image reference: ${result.imageRef || "Unknown"}`);
+  lines.push(`Risk band: ${result.band || "Unknown"}`);
+  lines.push(`Risk score: ${result.overallRisk ?? "Unknown"}`);
+  if (result.explanation) {
+    lines.push(`Assessment explanation: ${result.explanation}`);
+  }
+
+  const findings = (result.topFindings || []).slice(0, 12);
+  if (findings.length === 0) {
+    lines.push("Top findings: none");
+  } else {
+    lines.push("Top findings:");
+    findings.forEach((finding, index) => {
+      lines.push(
+        `${index + 1}. ${finding.cveId || "Unknown CVE"} | CVSS ${finding.cvss ?? "n/a"} | EPSS ${finding.epss ?? "n/a"} | Fix ${finding.fixAvailable ? "available" : "not available"}`
+      );
+      if (finding.summary) {
+        lines.push(`   Summary: ${finding.summary}`);
+      }
+      if ((finding.packages || []).length > 0) {
+        lines.push(`   Packages: ${(finding.packages || []).slice(0, 8).join(", ")}`);
+      }
+    });
+  }
+
+  const citations = (result.citations || []).slice(0, 10);
+  if (citations.length > 0) {
+    lines.push("Citations:");
+    citations.forEach((citation, index) => {
+      lines.push(`${index + 1}. ${citation.cveId || "Evidence"}${citation.url ? ` (${citation.url})` : ""}`);
+      if (citation.snippet) {
+        lines.push(`   Snippet: ${citation.snippet}`);
+      }
+    });
+  }
+
+  return lines.join("\n");
+}
+
+function buildImageChatScopeId(result: AssessImageResponse): string {
+  const normalizedImageRef = (result.imageRef || "unknown").trim().toLowerCase();
+  return `image|${normalizedImageRef || "unknown"}`;
 }
 
 export function ImageAssessment() {
@@ -340,6 +388,15 @@ export function ImageAssessment() {
                 </Stack>
               </Paper>
             )}
+
+            <Box>
+              <AssessmentFollowUpChat
+                chatScopeId={buildImageChatScopeId(result)}
+                assessmentContext={buildImageAssessmentContext(result)}
+                imageRef={result.imageRef}
+                title="Assessment follow-up chat"
+              />
+            </Box>
 
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>

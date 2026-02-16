@@ -1,5 +1,4 @@
 export type RiskBand = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-export type Verdict = "SUPPORTS" | "REFUTES" | "INSUFFICIENT";
 
 export interface Citation {
   cveId?: string;
@@ -77,6 +76,10 @@ export interface QaQuestionRequest {
   question: string;
   imageRef?: string;
   k?: number;
+  assessmentContext?: string;
+  chatHistory?: QaChatTurn[];
+  chatScopeId?: string;
+  conversationId?: string;
 }
 
 export interface QaQuestionResponse {
@@ -84,31 +87,30 @@ export interface QaQuestionResponse {
   citations?: Citation[];
   usedCves?: string[];
   usedPackages?: string[];
+  conversationId?: string;
 }
 
-export interface QaClaimRequest {
-  claim: string;
-  imageRef?: string;
-  topK?: number;
+export interface QaChatTurn {
+  role?: "user" | "assistant";
+  content?: string;
 }
 
-export interface QaClaimResponse {
-  verdict?: Verdict;
-  rationale?: string;
-  citations?: Citation[];
-}
-
-export type QaChatKind = "QUESTION" | "CLAIM";
-
-export interface QaChatHistoryItem {
+export interface QaConversationMessage {
   id?: number;
-  kind?: QaChatKind;
-  prompt?: string;
-  imageRef?: string;
-  k?: number;
-  questionResponse?: QaQuestionResponse;
-  claimResponse?: QaClaimResponse;
+  role?: "user" | "assistant";
+  content?: string;
+  citations?: Citation[];
   createdAt?: string;
+}
+
+export interface QaConversationHistoryItem {
+  conversationId?: string;
+  chatScopeId?: string;
+  title?: string;
+  imageRef?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  messages?: QaConversationMessage[];
 }
 
 export interface Reference {

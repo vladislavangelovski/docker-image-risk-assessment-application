@@ -16,7 +16,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
-import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
@@ -68,10 +67,6 @@ export function Dashboard() {
         return <ShieldRoundedIcon />;
       case "ASSESS_COMPOSE":
         return <DescriptionRoundedIcon />;
-      case "QA_QUESTION":
-        return <PsychologyIcon />;
-      case "QA_CLAIM":
-        return <FactCheckRoundedIcon />;
       case "CVE_LOOKUP":
         return <BugReportRoundedIcon />;
       case "SCAN_VIEW":
@@ -100,8 +95,8 @@ export function Dashboard() {
             <Button variant="outlined" startIcon={<DescriptionRoundedIcon />} component={Link} to="/assess/compose">
               Compose scan
             </Button>
-            <Button variant="outlined" startIcon={<PsychologyIcon />} component={Link} to="/qa">
-              New question
+            <Button variant="outlined" startIcon={<SearchIcon />} component={Link} to="/cves">
+              CVE lookup
             </Button>
           </Stack>
         }
@@ -169,9 +164,9 @@ export function Dashboard() {
                   variant="outlined"
                   startIcon={<PsychologyIcon />}
                   component={Link}
-                  to="/qa?tab=question&imageRef=nginx%3A1.25&k=4"
+                  to="/assess?imageRef=nginx%3A1.25&k=6"
                 >
-                  Ask: most exploitable findings
+                  Assess and open follow-up chat
                 </Button>
                 <Button
                   variant="outlined"
@@ -195,8 +190,9 @@ export function Dashboard() {
                 Explore risk with confidence.
               </Typography>
               <Typography color="text.secondary">
-                Assess images, inspect scans, and ask evidence-backed questions. Every screen
-                keeps an audit trail with raw JSON payloads for verification.
+                Assess images, inspect scans, and continue with evidence-backed follow-up chats
+                directly inside assessment results. Every screen keeps an audit trail with raw JSON
+                payloads for verification.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <Button variant="contained" startIcon={<RocketLaunchIcon />} component={Link} to="/assess">

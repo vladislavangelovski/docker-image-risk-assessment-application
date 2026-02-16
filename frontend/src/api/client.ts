@@ -9,9 +9,7 @@ import type {
   EmbeddingsSearchResponse,
   EpssScore,
   Page,
-  QaChatHistoryItem,
-  QaClaimRequest,
-  QaClaimResponse,
+  QaConversationHistoryItem,
   QaQuestionRequest,
   QaQuestionResponse,
   ScanJobStatus,
@@ -40,6 +38,28 @@ function getConfiguredApiBaseUrl(): string | undefined {
 }
 
 export const API_BASE_URL = getConfiguredApiBaseUrl() || DEFAULT_API_BASE;
+const CHAT_SESSION_STORAGE_KEY = "risk-console.chatSessionId";
+
+function getOrCreateChatSessionId(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const existing = window.localStorage.getItem(CHAT_SESSION_STORAGE_KEY);
+    if (existing) {
+      return existing;
+    }
+    const generated =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return undefined;
+  }
+}
 
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -64,6 +84,10 @@ async function requestJson<T>(
   const token = getAccessToken();
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+  const chatSessionId = getOrCreateChatSessionId();
+  if (chatSessionId && !headers.has("X-Chat-Session")) {
+    headers.set("X-Chat-Session", chatSessionId);
   }
 
   let response: Response;
@@ -101,13 +125,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  qaClaim: (payload: QaClaimRequest) =>
-    requestJson<QaClaimResponse>("/api/v1/qa/claim", {
-      method: "POST",
-      body: JSON.stringify(payload)
+  qaHistory: (chatScopeId: string, limit = 20) =>
+    requestJson<QaConversationHistoryItem[]>(
+      `/api/v1/qa/history?chatScopeId=${encodeURIComponent(chatScopeId)}&limit=${limit}`
+    ),
+  qaDeleteConversation: (conversationId: string) =>
+    requestJson<void>(`/api/v1/qa/history/${encodeURIComponent(conversationId)}`, {
+      method: "DELETE"
     }),
-  qaHistory: (limit = 50) =>
-    requestJson<QaChatHistoryItem[]>(`/api/v1/qa/history?limit=${limit}`),
   cveList: (page: number, size: number) =>
     requestJson<Page<CveEntry>>(`/api/v1/cves?page=${page}&size=${size}`),
   cveById: (cveId: string) => requestJson<CveEntry>(`/api/v1/cves/${cveId}`),

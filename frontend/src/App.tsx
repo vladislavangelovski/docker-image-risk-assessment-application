@@ -15,9 +15,6 @@ const ImageAssessment = React.lazy(() =>
 const ComposeAssessment = React.lazy(() =>
   import("./pages/ComposeAssessment").then((module) => ({ default: module.ComposeAssessment }))
 );
-const QaCenter = React.lazy(() =>
-  import("./pages/QaCenter").then((module) => ({ default: module.QaCenter }))
-);
 const CveLookup = React.lazy(() =>
   import("./pages/CveLookup").then((module) => ({ default: module.CveLookup }))
 );
@@ -83,7 +80,6 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/assess" element={<ImageAssessment />} />
           <Route path="/assess/compose" element={<ComposeAssessment />} />
-          <Route path="/qa" element={<QaCenter />} />
           <Route path="/cves" element={<CveLookup />} />
           <Route path="/scans" element={<ScanViewer />} />
           <Route

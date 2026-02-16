@@ -25,6 +25,7 @@ import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import type { AssessComposeResponse, RiskBand } from "../api/types";
+import { AssessmentFollowUpChat } from "../components/AssessmentFollowUpChat";
 import { PageHeader } from "../components/PageHeader";
 import { JsonPanel } from "../components/JsonPanel";
 import { useRecentActivity } from "../hooks/useRecentActivity";
@@ -68,6 +69,71 @@ function normalizeRiskScore(score?: number): number | null {
 
 const severityOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"] as const;
 
+function buildComposeAssessmentContext(result: AssessComposeResponse): string {
+  const lines: string[] = [];
+  lines.push("Assessment type: docker-compose");
+  lines.push(`Risk band: ${result.band || "Unknown"}`);
+  lines.push(`Risk score: ${result.overallRisk ?? "Unknown"}`);
+  if (result.explanation) {
+    lines.push(`Assessment explanation: ${result.explanation}`);
+  }
+
+  const configScan = result.configScan;
+  if (configScan) {
+    lines.push(
+      `Config findings total: ${configScan.totalFindings ?? 0} | Config risk score: ${configScan.riskScore ?? 0}`
+    );
+    if (configScan.error) {
+      lines.push(`Config scan error: ${configScan.error}`);
+    }
+    (configScan.findings || []).slice(0, 20).forEach((finding, index) => {
+      lines.push(
+        `Config finding ${index + 1}: ${finding.severity || "UNKNOWN"} ${finding.id || ""} ${finding.title || finding.message || ""}`.trim()
+      );
+      if (finding.resource) {
+        lines.push(`   Location: ${finding.resource}`);
+      }
+    });
+  }
+
+  const services = result.services || [];
+  if (services.length === 0) {
+    lines.push("Services: none");
+  } else {
+    lines.push("Service image assessments:");
+    services.slice(0, 20).forEach((service, index) => {
+      const assessment = service.assessment;
+      lines.push(
+        `${index + 1}. Service ${service.serviceName || "unknown"} | Image ${service.imageRef || "none"} | Band ${assessment?.band || "n/a"} | Score ${assessment?.overallRisk ?? "n/a"}`
+      );
+      if (service.error) {
+        lines.push(`   Error: ${service.error}`);
+      }
+      (assessment?.topFindings || []).slice(0, 5).forEach((finding) => {
+        lines.push(
+          `   - ${finding.cveId || "Unknown CVE"} | CVSS ${finding.cvss ?? "n/a"} | EPSS ${finding.epss ?? "n/a"} | Fix ${finding.fixAvailable ? "available" : "not available"}`
+        );
+      });
+    });
+  }
+
+  return lines.join("\n");
+}
+
+function buildComposeChatScopeId(composeYaml: string): string {
+  const normalized = composeYaml.trim();
+  if (!normalized) {
+    return "compose|empty";
+  }
+
+  let hash = 2166136261;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `compose|${(hash >>> 0).toString(16)}`;
+}
+
 export function ComposeAssessment() {
   const [composeYaml, setComposeYaml] = React.useState("");
   const [fileName, setFileName] = React.useState<string | null>(null);
@@ -76,6 +142,7 @@ export function ComposeAssessment() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<AssessComposeResponse | null>(null);
+  const [chatScopeId, setChatScopeId] = React.useState<string | null>(null);
   const [showRaw, setShowRaw] = React.useState(false);
   const { addActivity } = useRecentActivity();
 
@@ -89,6 +156,7 @@ export function ComposeAssessment() {
       setFileName(file.name);
       setError(null);
       setResult(null);
+      setChatScopeId(null);
       setShowRaw(false);
     } catch {
       setError("Failed to read the selected file.");
@@ -107,6 +175,7 @@ export function ComposeAssessment() {
     setLoading(true);
     setError(null);
     try {
+      const composeSnapshot = composeYaml;
       const trimmedK = kValue.trim();
       const kParsed = Number(trimmedK);
       const payload = {
@@ -116,6 +185,7 @@ export function ComposeAssessment() {
       };
       const data = await api.assessCompose(payload);
       setResult(data);
+      setChatScopeId(buildComposeChatScopeId(composeSnapshot));
       addActivity({
         kind: "ASSESS_COMPOSE",
         label: fileName || "docker-compose.yml",
@@ -448,6 +518,14 @@ export function ComposeAssessment() {
                 </Paper>
               </Grid>
             </Grid>
+
+            <Box>
+              <AssessmentFollowUpChat
+                chatScopeId={chatScopeId || buildComposeChatScopeId(composeYaml)}
+                assessmentContext={buildComposeAssessmentContext(result)}
+                title="Compose follow-up chat"
+              />
+            </Box>
 
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
