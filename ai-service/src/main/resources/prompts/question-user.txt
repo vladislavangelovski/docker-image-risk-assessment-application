@@ -14,7 +14,7 @@ User question:
 </cve_context>
 
 <image_context>
-Allowed CVEs from the image (if any):
+CVE IDs observed in the image scan (if any):
 %s
 
 Packages per CVE (if any):
@@ -23,7 +23,6 @@ Packages per CVE (if any):
 
 Now:
 1. Answer the latest user question first, then give concrete remediation suggestions.
-2. Use <assessment_context>, <conversation_history>, <cve_context>, and <image_context> as strong evidence.
-3. You may add broader security guidance, but label it as general guidance when it is not directly evidenced by context.
-4. If context evidence is missing for a factual claim, say that explicitly.
-5. Keep the answer to 3-6 concise bullets focused on container and DevOps impact.
+2. Use <assessment_context>, <conversation_history>, <cve_context>, and <image_context> to enrich and tailor the answer.
+3. If context is missing specifics, still answer using best practices and include how to validate/confirm.
+4. Keep the answer focused on container and DevOps impact, with concrete next steps.
