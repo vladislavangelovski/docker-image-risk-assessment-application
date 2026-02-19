@@ -37,7 +37,7 @@ public class AssessmentController {
     try {
       return assessmentService.assessCompose(
           new AssessComposeRequest(
-              request.composeYaml(), request.k() != null ? request.k() : 6, request.scanImages()));
+              request.composeYaml(), request.k() != null ? request.k() : 6, true));
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
     }
