@@ -61,7 +61,6 @@ export interface ComposeServiceAssessment {
 export interface AssessComposeRequest {
   composeYaml: string;
   k?: number;
-  scanImages?: boolean;
 }
 
 export interface AssessComposeResponse {

@@ -5,12 +5,10 @@ import {
   Button,
   Chip,
   CircularProgress,
-  FormControlLabel,
   Grid,
   Link,
   Paper,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -138,7 +136,6 @@ export function ComposeAssessment() {
   const [composeYaml, setComposeYaml] = React.useState("");
   const [fileName, setFileName] = React.useState<string | null>(null);
   const [kValue, setKValue] = React.useState("6");
-  const [scanImages, setScanImages] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<AssessComposeResponse | null>(null);
@@ -180,8 +177,7 @@ export function ComposeAssessment() {
       const kParsed = Number(trimmedK);
       const payload = {
         composeYaml,
-        k: scanImages && trimmedK && Number.isFinite(kParsed) ? kParsed : undefined,
-        scanImages
+        k: trimmedK && Number.isFinite(kParsed) ? kParsed : undefined
       };
       const data = await api.assessCompose(payload);
       setResult(data);
@@ -207,7 +203,7 @@ export function ComposeAssessment() {
     <Stack spacing={3}>
       <PageHeader
         title="Compose Assessment"
-        subtitle="Upload a docker-compose.yml, scan for misconfigurations, and optionally assess referenced images."
+        subtitle="Upload a docker-compose.yml, scan for misconfigurations, and assess referenced images."
         icon={<DescriptionRoundedIcon sx={{ color: "var(--mint-500)" }} />}
       />
 
@@ -230,15 +226,6 @@ export function ComposeAssessment() {
               </Button>
               {fileName && <Chip label={fileName} variant="outlined" sx={{ alignSelf: "flex-start" }} />}
               <Box sx={{ flexGrow: 1 }} />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={scanImages}
-                    onChange={(event) => setScanImages(event.target.checked)}
-                  />
-                }
-                label="Scan images"
-              />
             </Stack>
 
             <Grid container spacing={2} alignItems="center">
@@ -249,8 +236,7 @@ export function ComposeAssessment() {
                   type="number"
                   value={kValue}
                   onChange={(event) => setKValue(event.target.value)}
-                  helperText={scanImages ? "Per image" : "Disabled"}
-                  disabled={!scanImages}
+                  helperText="Per image"
                 />
               </Grid>
               <Grid item xs={12} md={10}>
@@ -266,12 +252,10 @@ export function ComposeAssessment() {
               </Grid>
             </Grid>
 
-            {scanImages && (
-              <Alert severity="info">
-                Image scanning can take a few minutes on the first run (image pull + Trivy DB warmup).
-                Subsequent scans are usually faster due to caching.
-              </Alert>
-            )}
+            <Alert severity="info">
+              Image scanning can take a few minutes on the first run (image pull + Trivy DB warmup).
+              Subsequent scans are usually faster due to caching.
+            </Alert>
 
             <TextField
               fullWidth
