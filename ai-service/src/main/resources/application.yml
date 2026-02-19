@@ -26,6 +26,8 @@ services:
 ai:
   evidence:
     k-default: 6
+  compose:
+    max-parallel-image-assessments: 1
   risk:
     coverage-cap: 10
     weights:
@@ -46,6 +48,14 @@ embeddings:
     enabled: false
     batch-size: 20
     max-batches: 5
+
+websearch:
+  enabled: false
+  trigger: cve_only # cve_only | image_or_cve | always
+  max-results: 5
+  brave:
+    base-url: https://api.search.brave.com
+    api-key: ${WEBSEARCH_BRAVE_API_KEY:}
 
 vectorstore:
   table: cve_embeddings

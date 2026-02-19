@@ -3,11 +3,14 @@ package com.finki.vladislavangelovski.ai_service.qa;
 import com.finki.vladislavangelovski.ai_service.clients.cve.CveStoreClient;
 import com.finki.vladislavangelovski.ai_service.search.VectorSearchService;
 import com.finki.vladislavangelovski.ai_service.search.dto.SearchHit;
+import com.finki.vladislavangelovski.ai_service.websearch.WebSearchResult;
+import com.finki.vladislavangelovski.ai_service.websearch.WebSearchService;
 import com.finki.vladislavangelovski.common.dto.Citation;
 import com.finki.vladislavangelovski.common.dto.CveForEmbedding;
 import com.finki.vladislavangelovski.common.dto.QaChatTurn;
 import com.finki.vladislavangelovski.common.dto.QaQuestionRequest;
 import com.finki.vladislavangelovski.common.dto.QaQuestionResponse;
+import java.net.URI;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,21 +29,44 @@ public class SemanticQuestionService {
   private static final int HISTORY_TURNS_MAX = 12;
   private static final int HISTORY_TURN_MAX_LEN = 1_000;
   private static final Pattern CVE_ID_PATTERN = Pattern.compile("CVE-\\d{4}-\\d{4,}");
+  private static final Pattern VERSION_CHECK_PATTERN =
+      Pattern.compile(
+          "(?i)(latest|newer|new|current).*(version|release|tag)|check\\s+.*version|is\\s+there\\s+a?\\s*newer");
+  private static final Pattern FIX_STATUS_PATTERN =
+      Pattern.compile(
+          "(?i)((fixed|fix|patched|resolved|mitigated).*(cve|vulnerab))|((cve|vulnerab).*(fixed|patch|resolved|mitigated))");
+  private static final Set<String> OFFICIAL_SOURCE_HOSTS =
+      Set.of(
+          "nvd.nist.gov",
+          "cve.mitre.org",
+          "mitre.org",
+          "hub.docker.com",
+          "quay.io",
+          "github.com",
+          "keycloak.org",
+          "www.keycloak.org",
+          "postgresql.org",
+          "www.postgresql.org",
+          "mongodb.com",
+          "www.mongodb.com");
 
   private final VectorSearchService vectorSearchService;
   private final ChatClient chatClient;
   private final CveStoreClient cveStoreClient;
   private final PromptTemplates promptTemplates;
+  private final WebSearchService webSearchService;
 
   public SemanticQuestionService(
       VectorSearchService vectorSearchService,
       ChatClient chatClient,
       CveStoreClient cveStoreClient,
-      PromptTemplates promptTemplates) {
+      PromptTemplates promptTemplates,
+      WebSearchService webSearchService) {
     this.vectorSearchService = vectorSearchService;
     this.chatClient = chatClient;
     this.cveStoreClient = cveStoreClient;
     this.promptTemplates = promptTemplates;
+    this.webSearchService = webSearchService;
   }
 
   private static List<SearchHit> topN(List<SearchHit> hits, int n) {
@@ -111,6 +137,75 @@ public class SemanticQuestionService {
     return result;
   }
 
+  private static String buildWebContext(List<WebSearchResult> results) {
+    if (results == null || results.isEmpty()) {
+      return "No web search results.";
+    }
+    StringBuilder sb = new StringBuilder();
+    int idx = 1;
+    for (WebSearchResult r : results) {
+      if (r == null || r.url() == null || r.url().isBlank()) {
+        continue;
+      }
+      String title = (r.title() == null || r.title().isBlank()) ? r.url() : r.title();
+      sb.append(idx).append(") ").append(title).append("\n");
+      sb.append("   URL: ").append(r.url()).append("\n");
+      if (r.snippet() != null && !r.snippet().isBlank()) {
+        sb.append("   Snippet: ").append(truncate(r.snippet(), 400)).append("\n");
+      }
+      sb.append("\n");
+      idx++;
+      if (idx > 6) {
+        break;
+      }
+    }
+    String out = sb.toString().trim();
+    return out.isBlank() ? "No web search results." : out;
+  }
+
+  private static List<Citation> buildWebCitations(List<WebSearchResult> results) {
+    if (results == null || results.isEmpty()) {
+      return List.of();
+    }
+    List<Citation> out = new ArrayList<>();
+    for (WebSearchResult r : results) {
+      if (r == null || r.url() == null || r.url().isBlank()) {
+        continue;
+      }
+      String label = r.title();
+      if (label == null || label.isBlank()) {
+        label = r.snippet();
+      }
+      if (label == null || label.isBlank()) {
+        label = "Web source";
+      }
+      out.add(new Citation(null, r.url(), truncate(label, 180)));
+    }
+    return out;
+  }
+
+  private static List<Citation> mergeCitations(List<Citation> a, List<Citation> b) {
+    if ((a == null || a.isEmpty()) && (b == null || b.isEmpty())) {
+      return List.of();
+    }
+    LinkedHashMap<String, Citation> byUrl = new LinkedHashMap<>();
+    if (a != null) {
+      for (Citation c : a) {
+        if (c != null && c.url() != null && !c.url().isBlank()) {
+          byUrl.putIfAbsent(c.url(), c);
+        }
+      }
+    }
+    if (b != null) {
+      for (Citation c : b) {
+        if (c != null && c.url() != null && !c.url().isBlank()) {
+          byUrl.putIfAbsent(c.url(), c);
+        }
+      }
+    }
+    return List.copyOf(byUrl.values());
+  }
+
   private List<SearchHit> buildEvidenceFromCveStore(
       String text, Set<String> allowedCves, int topN) {
     Set<String> candidates = new LinkedHashSet<>();
@@ -164,6 +259,13 @@ public class SemanticQuestionService {
     return out;
   }
 
+  private static boolean isVersionCheckQuestion(String question) {
+    if (question == null || question.isBlank()) {
+      return false;
+    }
+    return VERSION_CHECK_PATTERN.matcher(question).find();
+  }
+
   private static String truncate(String text, int maxLen) {
     if (text == null) {
       return "";
@@ -215,27 +317,48 @@ public class SemanticQuestionService {
   }
 
   public QaQuestionResponse answerQuestion(QaQuestionRequest request) {
-    return answer(request, null, null);
+    return answer(request, null, null, false);
+  }
+
+  public QaQuestionResponse answerQuestionToolFirst(QaQuestionRequest request) {
+    return answer(request, null, null, true);
   }
 
   public QaQuestionResponse answerQuestionForImage(
       QaQuestionRequest request, Set<String> allowedCves, Map<String, List<String>> packagesByCve) {
-    return answer(request, allowedCves, packagesByCve);
+    return answer(request, allowedCves, packagesByCve, false);
+  }
+
+  public QaQuestionResponse answerQuestionForImageToolFirst(
+      QaQuestionRequest request, Set<String> allowedCves, Map<String, List<String>> packagesByCve) {
+    return answer(request, allowedCves, packagesByCve, true);
   }
 
   private QaQuestionResponse answer(
-      QaQuestionRequest request, Set<String> allowedCves, Map<String, List<String>> packagesByCve) {
+      QaQuestionRequest request,
+      Set<String> allowedCves,
+      Map<String, List<String>> packagesByCve,
+      boolean forceToolFirstRouting) {
     String question = request.question();
     if (question == null || question.isBlank()) {
       throw new IllegalArgumentException("Question must not be null or blank");
     }
 
-    List<SearchHit> hits;
-    try {
-      hits = vectorSearchService.search(question, RETRIEVAL_K);
-    } catch (Exception ex) {
-      log.warn("Semantic retrieval failed; falling back to CVE store evidence only", ex);
-      hits = List.of();
+    boolean versionCheckQuestion = isVersionCheckQuestion(question);
+    boolean fixStatusQuestion = isFixStatusQuestion(question);
+    boolean toolFirstQuestion = forceToolFirstRouting || versionCheckQuestion || fixStatusQuestion;
+    if (toolFirstQuestion) {
+      log.info("QA tool-first intent detected; prioritizing web/scan evidence");
+    }
+
+    List<SearchHit> hits = List.of();
+    if (!toolFirstQuestion) {
+      try {
+        hits = vectorSearchService.search(question, RETRIEVAL_K);
+      } catch (Exception ex) {
+        log.warn("Semantic retrieval failed; falling back to CVE store evidence only", ex);
+        hits = List.of();
+      }
     }
 
     if (allowedCves != null && !allowedCves.isEmpty()) {
@@ -244,12 +367,30 @@ public class SemanticQuestionService {
     }
 
     List<SearchHit> evidence = topN(hits, EVIDENCE_TOP_N);
-    if (evidence.isEmpty()) {
+    if (!toolFirstQuestion && evidence.isEmpty()) {
       evidence = buildEvidenceFromCveStore(question, allowedCves, EVIDENCE_TOP_N);
     }
 
     String evidenceText = buildEvidenceText(evidence, packagesByCve);
     List<Citation> citations = buildCitations(evidence);
+
+    List<WebSearchResult> webResults;
+    try {
+      webResults = webSearchService.searchFixes(question, allowedCves);
+    } catch (Exception ex) {
+      log.debug("Web search failed; continuing without web evidence", ex);
+      webResults = List.of();
+    }
+    String webContext = buildWebContext(webResults);
+    List<Citation> webCitations = buildWebCitations(webResults);
+    List<Citation> mergedCitations =
+        toolFirstQuestion ? webCitations : mergeCitations(citations, webCitations);
+    boolean hasEvidenceForClaim =
+        hasClaimEvidence(versionCheckQuestion, fixStatusQuestion, webResults, allowedCves);
+
+    if (toolFirstQuestion && !hasEvidenceForClaim) {
+      return buildUnverifiedToolResponse(versionCheckQuestion, fixStatusQuestion);
+    }
 
     String systemPrompt = promptTemplates.questionSystem();
 
@@ -278,6 +419,7 @@ public class SemanticQuestionService {
             normalizeAssessmentContext(request.assessmentContext()),
             formatChatHistory(request.chatHistory()),
             evidenceText,
+            webContext,
             allowedCvesStr,
             packagesByCveStr);
 
@@ -291,7 +433,11 @@ public class SemanticQuestionService {
         msg = "LLM call failed";
       }
       List<String> usedCvesFallback =
-          citations.stream().map(Citation::cveId).filter(Objects::nonNull).distinct().toList();
+          mergedCitations.stream()
+              .map(Citation::cveId)
+              .filter(Objects::nonNull)
+              .distinct()
+              .toList();
 
       List<String> usedPackagesFallback = List.of();
       if (packagesByCve != null && !packagesByCve.isEmpty()) {
@@ -304,11 +450,12 @@ public class SemanticQuestionService {
       }
       String fallback =
           "LLM unavailable (" + msg + ").\n\nEvidence used:\n" + truncate(evidenceText, 2000);
-      return new QaQuestionResponse(fallback, citations, usedCvesFallback, usedPackagesFallback);
+      return new QaQuestionResponse(
+          fallback, mergedCitations, usedCvesFallback, usedPackagesFallback);
     }
 
     List<String> usedCves =
-        citations.stream().map(Citation::cveId).filter(Objects::nonNull).distinct().toList();
+        mergedCitations.stream().map(Citation::cveId).filter(Objects::nonNull).distinct().toList();
 
     List<String> usedPackages = List.of();
     if (packagesByCve != null && !packagesByCve.isEmpty()) {
@@ -320,6 +467,81 @@ public class SemanticQuestionService {
               .toList();
     }
 
-    return new QaQuestionResponse(answer, citations, usedCves, usedPackages);
+    return new QaQuestionResponse(answer, mergedCitations, usedCves, usedPackages);
+  }
+
+  private static boolean isFixStatusQuestion(String question) {
+    if (question == null || question.isBlank()) {
+      return false;
+    }
+    return FIX_STATUS_PATTERN.matcher(question).find();
+  }
+
+  private static boolean hasClaimEvidence(
+      boolean versionCheckQuestion,
+      boolean fixStatusQuestion,
+      List<WebSearchResult> webResults,
+      Set<String> allowedCves) {
+    boolean hasOfficialWebEvidence =
+        webResults != null && webResults.stream().anyMatch(r -> isOfficialSourceUrl(r.url()));
+    if (versionCheckQuestion) {
+      return hasOfficialWebEvidence;
+    }
+    if (fixStatusQuestion) {
+      return hasOfficialWebEvidence || (allowedCves != null && !allowedCves.isEmpty());
+    }
+    return webResults != null && !webResults.isEmpty();
+  }
+
+  private static QaQuestionResponse buildUnverifiedToolResponse(
+      boolean versionCheckQuestion, boolean fixStatusQuestion) {
+    if (versionCheckQuestion) {
+      return new QaQuestionResponse(
+          "I can't verify the latest version yet because I don't have trusted web evidence. "
+              + "Please retry once web search is enabled and reachable.",
+          List.of(),
+          List.of(),
+          List.of());
+    }
+    if (fixStatusQuestion) {
+      return new QaQuestionResponse(
+          "I can't verify fixed/not-fixed status yet because I don't have trusted web or scan evidence "
+              + "for this claim. Provide `imageRef` and CVE IDs, or retry once web search is available.",
+          List.of(),
+          List.of(),
+          List.of());
+    }
+    return new QaQuestionResponse(
+        "I can't verify this claim yet because evidence is missing.",
+        List.of(),
+        List.of(),
+        List.of());
+  }
+
+  private static boolean isOfficialSourceUrl(String url) {
+    if (url == null || url.isBlank()) {
+      return false;
+    }
+    try {
+      String host = URI.create(url).getHost();
+      if (host == null || host.isBlank()) {
+        return false;
+      }
+      String normalized = host.toLowerCase(Locale.ROOT);
+      if (normalized.startsWith("www.")) {
+        normalized = normalized.substring(4);
+      }
+      if (OFFICIAL_SOURCE_HOSTS.contains(normalized)) {
+        return true;
+      }
+      for (String official : OFFICIAL_SOURCE_HOSTS) {
+        if (normalized.endsWith("." + official)) {
+          return true;
+        }
+      }
+      return false;
+    } catch (IllegalArgumentException ex) {
+      return false;
+    }
   }
 }

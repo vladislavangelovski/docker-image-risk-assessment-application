@@ -13,6 +13,10 @@ User question:
 %s
 </cve_context>
 
+<web_context>
+%s
+</web_context>
+
 <image_context>
 CVE IDs observed in the image scan (if any):
 %s
@@ -23,6 +27,6 @@ Packages per CVE (if any):
 
 Now:
 1. Answer the latest user question first, then give concrete remediation suggestions.
-2. Use <assessment_context>, <conversation_history>, <cve_context>, and <image_context> to enrich and tailor the answer.
+2. Use <assessment_context>, <conversation_history>, <cve_context>, <web_context>, and <image_context> to enrich and tailor the answer.
 3. If context is missing specifics, still answer using best practices and include how to validate/confirm.
 4. Keep the answer focused on container and DevOps impact, with concrete next steps.

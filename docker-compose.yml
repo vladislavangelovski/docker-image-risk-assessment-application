@@ -182,6 +182,7 @@ services:
       SERVICES_HTTP_RESPONSE_TIMEOUT_MS: "180000"
       SERVICES_HTTP_READ_TIMEOUT_MS: "180000"
       SERVICES_HTTP_WRITE_TIMEOUT_MS: "180000"
+      AI_COMPOSE_MAX_PARALLEL_IMAGE_ASSESSMENTS: "${AI_COMPOSE_MAX_PARALLEL_IMAGE_ASSESSMENTS:-1}"
 
       # === services.scan ===
       SERVICES_SCAN_BASE_URL: http://scan-service:8080
@@ -208,6 +209,12 @@ services:
       # === chat model (Spring AI OpenAI-compatible -> Groq) ===
       GROQ_API_KEY: "${GROQ_API_KEY:-}"
       GROQ_CHAT_MODEL: "${GROQ_CHAT_MODEL:-llama-3.3-70b-versatile}"
+
+      # === optional web search (Brave Search API) ===
+      WEBSEARCH_ENABLED: "${WEBSEARCH_ENABLED:-false}"
+      WEBSEARCH_TRIGGER: "${WEBSEARCH_TRIGGER:-cve_only}"
+      WEBSEARCH_MAX_RESULTS: "${WEBSEARCH_MAX_RESULTS:-5}"
+      WEBSEARCH_BRAVE_API_KEY: "${WEBSEARCH_BRAVE_API_KEY:-}"
 
   gateway-service:
     build:

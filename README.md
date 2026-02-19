@@ -56,6 +56,20 @@ EMBEDDINGS_STARTUP_BATCH_SIZE=20
 EMBEDDINGS_STARTUP_MAX_BATCHES=5
 ```
 
+Optional (AI web search for remediation links):
+```
+WEBSEARCH_ENABLED=true
+WEBSEARCH_BRAVE_API_KEY=<your_brave_search_api_key>
+# Optional: WEBSEARCH_TRIGGER=cve_only|image_or_cve|always
+# Optional: WEBSEARCH_MAX_RESULTS=5
+```
+
+Optional (compose image assessment parallelism):
+```
+# Keep at 1 to avoid Trivy DB cache lock contention on compose assessments
+AI_COMPOSE_MAX_PARALLEL_IMAGE_ASSESSMENTS=1
+```
+
 ## Local Development
 1. **Start containers**
 `docker compose up --build` or `docker compose up --build -d` to make it detached

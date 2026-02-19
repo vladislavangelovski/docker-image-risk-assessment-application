@@ -75,6 +75,12 @@ public class WebClientConfig {
         .build();
   }
 
+  @Bean("webSearchWebClient")
+  public WebClient webSearchWebClient(
+      @Value("${websearch.brave.base-url:https://api.search.brave.com}") String baseUrl) {
+    return baseWebClientBuilder(2 * 1024 * 1024, true).baseUrl(baseUrl).build();
+  }
+
   private WebClient.Builder baseWebClientBuilder(int maxInMemoryBytes, boolean enableRetry) {
     HttpClient httpClient =
         HttpClient.create()

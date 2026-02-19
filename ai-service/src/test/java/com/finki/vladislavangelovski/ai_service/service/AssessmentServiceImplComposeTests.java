@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 class AssessmentServiceImplComposeTests {
 
   @Test
-  void assessesComposeWithConfigScanWhenImageScanningDisabled() {
+  void assessesComposeWithConfigScanAndImageScanningEnabledByDefault() {
     ScanClient scanClient = mock(ScanClient.class);
     when(scanClient.scanDockerCompose(anyString()))
         .thenReturn(
@@ -55,6 +55,7 @@ class AssessmentServiceImplComposeTests {
             0.65,
             0.35,
             0.15,
+            1,
             mock(VectorSearchService.class));
 
     String composeYaml =
@@ -79,12 +80,13 @@ class AssessmentServiceImplComposeTests {
     var byName =
         resp.services().stream()
             .collect(java.util.stream.Collectors.toMap(s -> s.serviceName(), s -> s));
-    assertThat(byName.get("web").error()).contains("disabled");
+    assertThat(byName.get("web").assessment()).isNotNull();
+    assertThat(byName.get("web").error()).isNull();
     assertThat(byName.get("worker").error()).contains("build");
     assertThat(byName.get("db").error()).contains("no image");
 
     verify(scanClient).scanDockerCompose(composeYaml);
-    verify(scanClient, never()).scanImage(anyString());
+    verify(scanClient).scanImage("nginx:1.25");
   }
 
   @Test
@@ -98,6 +100,7 @@ class AssessmentServiceImplComposeTests {
             0.65,
             0.35,
             0.15,
+            1,
             mock(VectorSearchService.class));
 
     assertThatThrownBy(() -> service.assessCompose(new AssessComposeRequest(":\n", 6, false)))

@@ -31,6 +31,7 @@ public class AssessmentServiceImpl implements AssessmentService {
   private final double wCvss;
   private final double coverageBonus;
   private final VectorSearchService vectorSearchService;
+  private final int composeMaxParallelImageAssessments;
 
   public AssessmentServiceImpl(
       ScanClient scanClient,
@@ -40,6 +41,8 @@ public class AssessmentServiceImpl implements AssessmentService {
       @Value("${ai.risk.weights.epss:0.65}") double wEpss,
       @Value("${ai.risk.weights.cvss:0.35}") double wCvss,
       @Value("${ai.risk.weights.coverage-bonus:0.15}") double coverageBonus,
+      @Value("${ai.compose.max-parallel-image-assessments:1}")
+          int composeMaxParallelImageAssessments,
       VectorSearchService vectorSearchService) {
     this.scanClient = scanClient;
     this.cveClient = cveClient;
@@ -48,6 +51,7 @@ public class AssessmentServiceImpl implements AssessmentService {
     this.wEpss = wEpss;
     this.wCvss = wCvss;
     this.coverageBonus = coverageBonus;
+    this.composeMaxParallelImageAssessments = Math.max(1, composeMaxParallelImageAssessments);
     this.vectorSearchService = vectorSearchService;
   }
 
@@ -63,8 +67,6 @@ public class AssessmentServiceImpl implements AssessmentService {
     }
     return RiskBand.LOW;
   }
-
-  private static final int MAX_PARALLEL_IMAGE_ASSESSMENTS = 3;
 
   private record ComposeServiceSpec(String imageRef, boolean hasBuild) {}
 
@@ -265,7 +267,6 @@ public class AssessmentServiceImpl implements AssessmentService {
   @Override
   public AssessComposeResponse assessCompose(AssessComposeRequest request) {
     int k = request.k() != null ? request.k() : kDefault;
-    boolean scanImages = request.scanImages() == null || request.scanImages();
 
     Map<String, ComposeServiceSpec> services = parseComposeServices(request.composeYaml());
     if (services.isEmpty()) {
@@ -293,47 +294,45 @@ public class AssessmentServiceImpl implements AssessmentService {
 
     Map<String, CompletableFuture<ImageAssessmentOutcome>> byImageRef = new LinkedHashMap<>();
     ExecutorService executor = null;
-    if (scanImages) {
-      List<String> uniqueImages =
-          services.values().stream()
-              .filter(Objects::nonNull)
-              .map(ComposeServiceSpec::imageRef)
-              .filter(Objects::nonNull)
-              .map(String::trim)
-              .filter(s -> !s.isBlank())
-              .distinct()
-              .toList();
+    List<String> uniqueImages =
+        services.values().stream()
+            .filter(Objects::nonNull)
+            .map(ComposeServiceSpec::imageRef)
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .distinct()
+            .toList();
 
-      if (!uniqueImages.isEmpty()) {
-        int poolSize = Math.min(MAX_PARALLEL_IMAGE_ASSESSMENTS, uniqueImages.size());
-        executor =
-            Executors.newFixedThreadPool(
-                poolSize,
-                r -> {
-                  Thread t = new Thread(r, "compose-image-assess");
-                  t.setDaemon(true);
-                  return t;
-                });
+    if (!uniqueImages.isEmpty()) {
+      int poolSize = Math.min(composeMaxParallelImageAssessments, uniqueImages.size());
+      executor =
+          Executors.newFixedThreadPool(
+              poolSize,
+              r -> {
+                Thread t = new Thread(r, "compose-image-assess");
+                t.setDaemon(true);
+                return t;
+              });
 
-        for (String imageRef : uniqueImages) {
-          byImageRef.put(
-              imageRef,
-              CompletableFuture.supplyAsync(
-                  () -> {
-                    try {
-                      AssessImageResponse assessment =
-                          assessImage(new AssessImageRequest(imageRef, k));
-                      return new ImageAssessmentOutcome(assessment, null);
-                    } catch (Throwable ex) {
-                      String msg = ex.getMessage();
-                      if (msg == null || msg.isBlank()) {
-                        msg = ex.getClass().getSimpleName();
-                      }
-                      return new ImageAssessmentOutcome(null, "Failed to assess image: " + msg);
+      for (String imageRef : uniqueImages) {
+        byImageRef.put(
+            imageRef,
+            CompletableFuture.supplyAsync(
+                () -> {
+                  try {
+                    AssessImageResponse assessment =
+                        assessImage(new AssessImageRequest(imageRef, k));
+                    return new ImageAssessmentOutcome(assessment, null);
+                  } catch (Throwable ex) {
+                    String msg = ex.getMessage();
+                    if (msg == null || msg.isBlank()) {
+                      msg = ex.getClass().getSimpleName();
                     }
-                  },
-                  executor));
-        }
+                    return new ImageAssessmentOutcome(null, "Failed to assess image: " + msg);
+                  }
+                },
+                executor));
       }
     }
 
@@ -353,13 +352,6 @@ public class AssessmentServiceImpl implements AssessmentService {
         }
 
         String normalizedImageRef = imageRef.trim();
-
-        if (!scanImages) {
-          serviceAssessments.add(
-              new ComposeServiceAssessment(
-                  serviceName, normalizedImageRef, null, "Image scanning is disabled."));
-          continue;
-        }
 
         CompletableFuture<ImageAssessmentOutcome> future = byImageRef.get(normalizedImageRef);
         ImageAssessmentOutcome outcome =
