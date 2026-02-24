@@ -160,7 +160,8 @@ class SemanticQuestionServiceTests {
         new SemanticQuestionService(
             vectorSearch, chatClient, cveStoreClient, templates, webSearchService);
 
-    var response = service.answerQuestion(new QaQuestionRequest("How should I remediate this?", null, null));
+    var response =
+        service.answerQuestion(new QaQuestionRequest("How should I remediate this?", null, null));
 
     assertThat(response.answer()).contains("Summary");
     assertThat(response.answer()).contains("Answer: Patch quickly.");
