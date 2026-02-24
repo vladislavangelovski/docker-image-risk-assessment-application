@@ -47,7 +47,7 @@
 
 ## Phase 6 – gateway-service
 - Spring Cloud Gateway routing to downstream services
-- Implement authentication/authorization (currently disabled), request logging, correlation IDs
+- Implement authentication/authorization (enabled in the current compose setup; continue hardening), request logging, correlation IDs
 - Global error handling and consistent error payloads
 - Aggregate/normalize responses where needed
 - Swagger/OpenAPI exposure (single entrypoint)

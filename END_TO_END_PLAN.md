@@ -104,6 +104,7 @@ Legend:
 - [x] Dockerfile for frontend (see `frontend/Dockerfile`)
 - [x] `docker-compose.yml` includes gateway, scan, cve-store, ai, Redis, PostgreSQL (see `docker-compose.yml`)
 - [x] `docker-compose.yml` includes frontend (see `docker-compose.yml`)
+- [x] Compose scan reliability defaults for local images (`scan-service` mounts `/var/run/docker.sock`; `SCAN_DEFAULTS_TIMEOUT_SEC=300`) (see `docker-compose.yml`)
 - [x] Validate end-to-end locally via UI + gateway
 - [x] Seed/dev data strategy (optional; beyond live NVD/EPSS pulls)
 

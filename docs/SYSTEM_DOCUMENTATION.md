@@ -1,6 +1,6 @@
 # Docker Image Risk Assessment Application - System Documentation
 
-Generated: 2026-02-02 (based on the repository contents in this workspace).
+Generated: 2026-02-24 (based on the repository contents in this workspace).
 
 This document is the "single deep dive" description of the system: architecture, services, data
 model, APIs, technology choices, configuration, and the reasons those pieces exist in their
@@ -303,6 +303,11 @@ From `docker-compose.yml`:
   - `INGEST_NVD_LOOKBACK_DAYS`, `INGEST_NVD_MAX_WINDOW_DAYS`
   - `INGEST_BOOTSTRAP_ENABLED`
   - `NVD_API_KEY` is supported (read by cve-store), but is not set in compose by default
+
+- Scan service:
+  - `TRIVY_CACHE_DIR`
+  - `SCAN_DEFAULTS_TIMEOUT_SEC` (compose overrides Trivy default scan timeout to 300s)
+  - `/var/run/docker.sock` is mounted to allow scanning local Docker images that are not pullable from a registry
 
 - AI service:
   - downstream service URLs/paths under `SERVICES_*`

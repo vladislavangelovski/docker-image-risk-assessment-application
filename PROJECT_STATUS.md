@@ -1,6 +1,8 @@
 # Project status and next-step course
 
 ## Recent progress (fix plan completed)
+- Improved QA answer readability by enforcing plain-text, well-structured responses (no markdown formatting in model output).
+- Updated compose scan reliability for local images by mounting Docker socket into `scan-service` and increasing default scan timeout to 300s.
 - Fixed scan retrieval route so `GET /api/v1/scans/{scanId}` works end-to-end.
 - Fixed AI QA “packages in image” wiring by mapping scan findings’ package field into AI package context.
 - Guarded semantic search endpoints against null request bodies (400 instead of NPE).
@@ -23,7 +25,7 @@
 - **Ollama connectivity**: The AI service now targets the `ollama` container on the compose network (previously pointed to `host.docker.internal`, which breaks on Linux hosts). Update local `.env`/deployments accordingly.
 - **Ollama performance**: Use a quantized chat model for responsive QA on CPU; first call may still be slower if the model needs to be pulled or warmed.
 - **Embeddings indexing**: Image-based QA/claim now auto-indexes missing CVE embeddings for CVEs found in the scanned image. Semantic-only queries (no `imageRef`) still benefit from pre-indexing via the admin endpoint.
-- **Dependencies**: Compose waits for Postgres before starting CVE Store/AI but only uses `service_started` for CVE Store and Scan Service; prefer health-based conditions (or retries) to avoid cold-start call failures.
+- **Dependencies**: Compose waits for healthy Postgres before starting CVE Store and waits for healthy CVE Store/Scan before AI startup. `scan-service` still uses start-order `depends_on` for Postgres/Redis (no health condition), so retries/timeouts remain important.
 
 ## Course to reach the goal with current context
 1. **Harden service edges and gateway**
