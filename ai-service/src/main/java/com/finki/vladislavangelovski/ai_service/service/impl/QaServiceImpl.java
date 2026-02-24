@@ -164,7 +164,7 @@ public class QaServiceImpl implements QaService {
     if (!StringUtils.hasText(targetImage)) {
       String answer =
           "I can't verify whether those CVEs are fixed because I don't have a target image tag to scan. "
-              + "Please provide `imageRef` (for example: `quay.io/keycloak/keycloak:26.5`).";
+              + "Please provide imageRef (for example: quay.io/keycloak/keycloak:26.5).";
       return new QaQuestionResponse(answer, List.of(), List.copyOf(cves), List.of());
     }
 
@@ -177,7 +177,7 @@ public class QaServiceImpl implements QaService {
         msg = ex.getClass().getSimpleName();
       }
       String answer =
-          "I tried to verify fixes by scanning `" + targetImage + "`, but the scan failed: " + msg;
+          "I tried to verify fixes by scanning " + targetImage + ", but the scan failed: " + msg;
       return new QaQuestionResponse(answer, List.of(), List.copyOf(cves), List.of());
     }
 
@@ -226,9 +226,9 @@ public class QaServiceImpl implements QaService {
 
     StringBuilder answer = new StringBuilder();
     answer
-        .append("I checked `")
+        .append("I checked ")
         .append(targetImage)
-        .append("` against ")
+        .append(" against ")
         .append(cves.size())
         .append(" CVE(s) from your context.\n\n");
     answer.append("Still present (").append(stillPresent.size()).append("): ");
@@ -238,7 +238,7 @@ public class QaServiceImpl implements QaService {
     answer.append(notDetected.isEmpty() ? "none" : String.join(", ", notDetected));
     answer.append("\n\n");
     answer.append(
-        "`Not detected` means the current scanner output for this image tag did not report that CVE.");
+        "Not detected means the current scanner output for this image tag did not report that CVE.");
 
     return new QaQuestionResponse(answer.toString(), citations, List.copyOf(cves), usedPackages);
   }

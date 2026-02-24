@@ -30,3 +30,4 @@ Now:
 2. Use <assessment_context>, <conversation_history>, <cve_context>, <web_context>, and <image_context> to enrich and tailor the answer.
 3. If context is missing specifics, still answer using best practices and include how to validate/confirm.
 4. Keep the answer focused on container and DevOps impact, with concrete next steps.
+5. Return plain text only (no markdown headings, bold, inline code, fenced blocks, or markdown links).

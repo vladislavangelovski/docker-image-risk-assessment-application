@@ -130,4 +130,47 @@ class SemanticQuestionServiceTests {
     assertThat(response.citations().getFirst().url())
         .isEqualTo("https://hub.docker.com/_/postgres");
   }
+
+  @Test
+  void normalizesMarkdownLikeFormattingFromLlmResponse() {
+    VectorSearchService vectorSearch = mock(VectorSearchService.class);
+    when(vectorSearch.search(anyString(), anyInt())).thenReturn(List.of());
+
+    ChatClient chatClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+    when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+        .thenReturn(
+            """
+            # Summary
+            **Answer:** Patch quickly.
+
+            - Update base image
+            - Validate `CVE-2021-44228` status
+            See [NVD](https://nvd.nist.gov/vuln/detail/CVE-2021-44228).
+            """);
+
+    CveStoreClient cveStoreClient = mock(CveStoreClient.class);
+    PromptTemplates templates = mock(PromptTemplates.class);
+    when(templates.questionSystem()).thenReturn("");
+    when(templates.questionUser()).thenReturn("%s\n%s\n%s\n%s");
+
+    WebSearchService webSearchService = mock(WebSearchService.class);
+    when(webSearchService.searchFixes(anyString(), any())).thenReturn(List.of());
+
+    SemanticQuestionService service =
+        new SemanticQuestionService(
+            vectorSearch, chatClient, cveStoreClient, templates, webSearchService);
+
+    var response = service.answerQuestion(new QaQuestionRequest("How should I remediate this?", null, null));
+
+    assertThat(response.answer()).contains("Summary");
+    assertThat(response.answer()).contains("Answer: Patch quickly.");
+    assertThat(response.answer()).contains("- Update base image");
+    assertThat(response.answer()).contains("- Validate CVE-2021-44228 status");
+    assertThat(response.answer())
+        .contains("See NVD (https://nvd.nist.gov/vuln/detail/CVE-2021-44228).");
+    assertThat(response.answer()).doesNotContain("**");
+    assertThat(response.answer()).doesNotContain("[NVD](");
+    assertThat(response.answer()).doesNotContain("# ");
+    assertThat(response.answer()).doesNotContain("`");
+  }
 }

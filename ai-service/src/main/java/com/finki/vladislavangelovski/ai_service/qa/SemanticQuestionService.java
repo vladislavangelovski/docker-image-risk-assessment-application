@@ -35,6 +35,15 @@ public class SemanticQuestionService {
   private static final Pattern FIX_STATUS_PATTERN =
       Pattern.compile(
           "(?i)((fixed|fix|patched|resolved|mitigated).*(cve|vulnerab))|((cve|vulnerab).*(fixed|patch|resolved|mitigated))");
+  private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("^\\s{0,3}#{1,6}\\s+");
+  private static final Pattern MARKDOWN_BLOCKQUOTE_PATTERN = Pattern.compile("^\\s*>+\\s?");
+  private static final Pattern MARKDOWN_BULLET_PATTERN = Pattern.compile("^\\s*[-*+]\\s+");
+  private static final Pattern MARKDOWN_NUMBERED_PATTERN = Pattern.compile("^\\s*(\\d+)\\.\\s+");
+  private static final Pattern MARKDOWN_LINK_PATTERN =
+      Pattern.compile("\\[([^\\]]+)]\\((https?://[^\\s)]+)\\)");
+  private static final Pattern MARKDOWN_BOLD_PATTERN = Pattern.compile("(\\*\\*|__)(.+?)\\1");
+  private static final Pattern MARKDOWN_INLINE_CODE_PATTERN = Pattern.compile("`([^`]+)`");
+  private static final Pattern MULTI_BLANK_LINES_PATTERN = Pattern.compile("\\n{3,}");
   private static final Set<String> OFFICIAL_SOURCE_HOSTS =
       Set.of(
           "nvd.nist.gov",
@@ -451,7 +460,10 @@ public class SemanticQuestionService {
       String fallback =
           "LLM unavailable (" + msg + ").\n\nEvidence used:\n" + truncate(evidenceText, 2000);
       return new QaQuestionResponse(
-          fallback, mergedCitations, usedCvesFallback, usedPackagesFallback);
+          normalizeLlmAnswerFormatting(fallback),
+          mergedCitations,
+          usedCvesFallback,
+          usedPackagesFallback);
     }
 
     List<String> usedCves =
@@ -467,7 +479,8 @@ public class SemanticQuestionService {
               .toList();
     }
 
-    return new QaQuestionResponse(answer, mergedCitations, usedCves, usedPackages);
+    return new QaQuestionResponse(
+        normalizeLlmAnswerFormatting(answer), mergedCitations, usedCves, usedPackages);
   }
 
   private static boolean isFixStatusQuestion(String question) {
@@ -506,7 +519,7 @@ public class SemanticQuestionService {
     if (fixStatusQuestion) {
       return new QaQuestionResponse(
           "I can't verify fixed/not-fixed status yet because I don't have trusted web or scan evidence "
-              + "for this claim. Provide `imageRef` and CVE IDs, or retry once web search is available.",
+              + "for this claim. Provide imageRef and CVE IDs, or retry once web search is available.",
           List.of(),
           List.of(),
           List.of());
@@ -543,5 +556,51 @@ public class SemanticQuestionService {
     } catch (IllegalArgumentException ex) {
       return false;
     }
+  }
+
+  private static String normalizeLlmAnswerFormatting(String rawAnswer) {
+    if (rawAnswer == null || rawAnswer.isBlank()) {
+      return "I could not generate an answer. Please try again.";
+    }
+
+    String normalized = rawAnswer.replace("\r\n", "\n").replace('\r', '\n').trim();
+    String[] lines = normalized.split("\n");
+    List<String> cleanedLines = new ArrayList<>(lines.length);
+    boolean previousBlank = false;
+
+    for (String line : lines) {
+      String current = line == null ? "" : line.stripTrailing();
+      String trimmedLeading = current.stripLeading();
+      if (trimmedLeading.startsWith("```")) {
+        continue;
+      }
+
+      current = MARKDOWN_HEADING_PATTERN.matcher(current).replaceFirst("");
+      current = MARKDOWN_BLOCKQUOTE_PATTERN.matcher(current).replaceFirst("");
+      current = MARKDOWN_NUMBERED_PATTERN.matcher(current).replaceFirst("$1) ");
+      current = MARKDOWN_BULLET_PATTERN.matcher(current).replaceFirst("- ");
+      current = MARKDOWN_LINK_PATTERN.matcher(current).replaceAll("$1 ($2)");
+      current = MARKDOWN_BOLD_PATTERN.matcher(current).replaceAll("$2");
+      current = MARKDOWN_INLINE_CODE_PATTERN.matcher(current).replaceAll("$1");
+      current = current.trim();
+
+      if (current.isBlank()) {
+        if (!previousBlank) {
+          cleanedLines.add("");
+          previousBlank = true;
+        }
+        continue;
+      }
+
+      cleanedLines.add(current);
+      previousBlank = false;
+    }
+
+    String output = String.join("\n", cleanedLines).trim();
+    output = MULTI_BLANK_LINES_PATTERN.matcher(output).replaceAll("\n\n").trim();
+    if (output.isBlank()) {
+      return "I could not generate an answer. Please try again.";
+    }
+    return output;
   }
 }

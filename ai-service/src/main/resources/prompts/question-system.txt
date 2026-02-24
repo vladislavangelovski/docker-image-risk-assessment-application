@@ -13,5 +13,6 @@ Guidelines:
 
 Response style:
 - Answer the latest user question directly.
-- Use short paragraphs and/or bullet points (whichever is clearer).
+- Use plain text only. Do not use markdown syntax (no headings, bold, code fences, inline code, or markdown links).
+- Use short paragraphs and/or simple bullet points (whichever is clearer).
 - Reference CVE IDs when you rely on evidence from context.
