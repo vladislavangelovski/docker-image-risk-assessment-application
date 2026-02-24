@@ -122,6 +122,7 @@ services:
       retries: 5
     environment:
       TRIVY_CACHE_DIR: /var/cache/trivy
+      SCAN_DEFAULTS_TIMEOUT_SEC: "300"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/riskdb"
@@ -137,6 +138,7 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - trivy-cache:/var/cache/trivy
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - postgres
       - redis
