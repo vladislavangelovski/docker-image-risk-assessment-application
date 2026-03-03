@@ -5,6 +5,8 @@ import com.finki.vladislavangelovski.scan_service.core.ScanCache;
 import com.finki.vladislavangelovski.scan_service.core.ScanJobStore;
 import com.finki.vladislavangelovski.scan_service.core.ScannerException;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
   private static ResponseEntity<ErrorResponse> build(
       HttpStatus status, ErrorCode code, String message, Map<String, Object> details) {
     return ResponseEntity.status(status).body(new ErrorResponse(code, message, details));
@@ -65,6 +69,7 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleAny(Exception ex) {
+    log.error("[scan-service] Unhandled exception", ex);
     return build(
         HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL, "Unexpected server error", Map.of());
   }

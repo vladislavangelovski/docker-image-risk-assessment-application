@@ -1,8 +1,10 @@
 package com.finki.vladislavangelovski.scan_service.api;
 
+import com.finki.vladislavangelovski.scan_service.api.dto.ScanHistoryPage;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanJobStatus;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanRequest;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
+import com.finki.vladislavangelovski.scan_service.api.dto.Severity;
 import com.finki.vladislavangelovski.scan_service.api.error.NotFoundException;
 import com.finki.vladislavangelovski.scan_service.core.ParserException;
 import com.finki.vladislavangelovski.scan_service.core.ScanCache;
@@ -196,6 +198,30 @@ public class ScanController {
       throws ScanJobStore.StoreWriteException {
     validate(request);
     return scanJobCoordinator.submit(request);
+  }
+
+  @GetMapping("/history")
+  @Operation(
+      summary = "Get paged scan history",
+      description =
+          "Returns recent scans ordered by finishedAt descending with optional image and minimum"
+              + " severity filters.")
+  public ScanHistoryPage history(
+      @RequestParam(name = "page", defaultValue = "0") int page,
+      @RequestParam(name = "size", defaultValue = "50") int size,
+      @RequestParam(name = "imageRef", required = false) String imageRef,
+      @RequestParam(name = "minSeverity", required = false) Severity minSeverity) {
+    if (page < 0) {
+      throw new IllegalArgumentException("page must be >= 0");
+    }
+    if (size < 1 || size > 200) {
+      throw new IllegalArgumentException("size must be between 1 and 200");
+    }
+
+    var result = persistence.findHistory(page, size, imageRef, minSeverity);
+    int totalPages =
+        result.totalElements() == 0 ? 0 : (int) Math.ceil((double) result.totalElements() / size);
+    return new ScanHistoryPage(result.content(), totalPages, result.totalElements(), size, page);
   }
 
   /**

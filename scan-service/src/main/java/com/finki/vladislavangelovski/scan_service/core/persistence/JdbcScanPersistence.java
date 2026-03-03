@@ -1,9 +1,11 @@
 package com.finki.vladislavangelovski.scan_service.core.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finki.vladislavangelovski.scan_service.api.dto.ScanHistoryItem;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
 import com.finki.vladislavangelovski.scan_service.api.dto.Severity;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -82,6 +84,18 @@ public class JdbcScanPersistence implements ScanPersistence {
       """
             SELECT raw_json::text
             FROM scan.scan_raw WHERE scan_id = :scan_id
+            """;
+
+  private static final String HISTORY_SEVERITY_RANK_SQL =
+      """
+            CASE
+              WHEN critical > 0 THEN 4
+              WHEN high > 0 THEN 3
+              WHEN medium > 0 THEN 2
+              WHEN low > 0 THEN 1
+              WHEN unknown > 0 THEN 0
+              ELSE 0
+            END
             """;
 
   private final NamedParameterJdbcTemplate jdbc;
@@ -163,6 +177,56 @@ public class JdbcScanPersistence implements ScanPersistence {
   public Optional<LoadedScan> findLatestByImage(String image, boolean includeRaw) {
     return loadSingle(
         SQL_SELECT_LATEST_BY_IMAGE, new MapSqlParameterSource("image", image), includeRaw);
+  }
+
+  @Override
+  public PagedResult<ScanHistoryItem> findHistory(
+      int page, int size, String imageRef, Severity minSeverity) {
+    int normalizedPage = Math.max(0, page);
+    int normalizedSize = Math.max(1, size);
+    int offset = normalizedPage * normalizedSize;
+
+    var params =
+        new MapSqlParameterSource().addValue("limit", normalizedSize).addValue("offset", offset);
+
+    String whereClause = buildHistoryWhereClause(params, imageRef, minSeverity);
+    String selectSql =
+        """
+            SELECT scan_id, image, scanner_version, started_at, finished_at,
+                   total, critical, high, medium, low, unknown, fix_available
+            FROM scan.scans
+            """
+            + whereClause
+            + """
+
+            ORDER BY finished_at DESC, scan_id DESC
+            LIMIT :limit OFFSET :offset
+            """;
+
+    List<ScanHistoryItem> items =
+        jdbc.query(
+            selectSql,
+            params,
+            (rs, rn) -> {
+              int critical = rs.getInt("critical");
+              int high = rs.getInt("high");
+              int medium = rs.getInt("medium");
+              int low = rs.getInt("low");
+              int unknown = rs.getInt("unknown");
+              return new ScanHistoryItem(
+                  rs.getObject("scan_id", UUID.class),
+                  rs.getString("image"),
+                  rs.getString("scanner_version"),
+                  rs.getTimestamp("started_at").toInstant(),
+                  rs.getTimestamp("finished_at").toInstant(),
+                  rs.getInt("total"),
+                  rs.getInt("fix_available"),
+                  maxSeverityFromCounts(critical, high, medium, low, unknown));
+            });
+
+    String countSql = "SELECT COUNT(*) FROM scan.scans " + whereClause;
+    Long total = jdbc.queryForObject(countSql, params, Long.class);
+    return new PagedResult<>(items, total == null ? 0 : total);
   }
 
   private Optional<LoadedScan> loadSingle(
@@ -264,6 +328,58 @@ public class JdbcScanPersistence implements ScanPersistence {
             java.util.List.copyOf(findings));
 
     return Optional.of(new LoadedScan(scanId, scanResult, raw));
+  }
+
+  private static String buildHistoryWhereClause(
+      MapSqlParameterSource params, String imageRef, Severity minSeverity) {
+    StringBuilder where = new StringBuilder("WHERE 1=1 ");
+
+    String normalizedImageRef = imageRef == null ? "" : imageRef.trim();
+    if (!normalizedImageRef.isEmpty()) {
+      where.append(" AND image ILIKE :image_filter");
+      params.addValue("image_filter", "%" + normalizedImageRef + "%");
+    }
+
+    Integer minSeverityRank = severityRank(minSeverity);
+    if (minSeverityRank != null) {
+      where.append(" AND ").append(HISTORY_SEVERITY_RANK_SQL).append(" >= :min_severity_rank");
+      params.addValue("min_severity_rank", minSeverityRank);
+    }
+
+    return where.toString();
+  }
+
+  private static Integer severityRank(Severity severity) {
+    if (severity == null) {
+      return null;
+    }
+    return switch (severity) {
+      case CRITICAL -> 4;
+      case HIGH -> 3;
+      case MEDIUM -> 2;
+      case LOW -> 1;
+      case UNKNOWN -> 0;
+    };
+  }
+
+  private static Severity maxSeverityFromCounts(
+      int critical, int high, int medium, int low, int unknown) {
+    if (critical > 0) {
+      return Severity.CRITICAL;
+    }
+    if (high > 0) {
+      return Severity.HIGH;
+    }
+    if (medium > 0) {
+      return Severity.MEDIUM;
+    }
+    if (low > 0) {
+      return Severity.LOW;
+    }
+    if (unknown > 0) {
+      return Severity.UNKNOWN;
+    }
+    return Severity.UNKNOWN;
   }
 
   private MapSqlParameterSource mapFinding(

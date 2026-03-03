@@ -1,6 +1,9 @@
 package com.finki.vladislavangelovski.scan_service.core.persistence;
 
+import com.finki.vladislavangelovski.scan_service.api.dto.ScanHistoryItem;
 import com.finki.vladislavangelovski.scan_service.api.dto.ScanResult;
+import com.finki.vladislavangelovski.scan_service.api.dto.Severity;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,4 +38,18 @@ public interface ScanPersistence {
    * @return Optional present if found; empty if not found
    */
   Optional<LoadedScan> findLatestByImage(String image, boolean includeRaw);
+
+  /**
+   * Load a paged scan history ordered by completion time descending.
+   *
+   * @param page zero-based page index
+   * @param size page size
+   * @param imageRef optional case-insensitive image filter
+   * @param minSeverity optional minimum severity threshold
+   * @return paged history content and total rows
+   */
+  PagedResult<ScanHistoryItem> findHistory(
+      int page, int size, String imageRef, Severity minSeverity);
+
+  record PagedResult<T>(List<T> content, long totalElements) {}
 }
