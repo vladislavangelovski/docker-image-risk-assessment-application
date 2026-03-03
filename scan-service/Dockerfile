@@ -9,14 +9,15 @@ COPY . .
 RUN mvn -q -pl scan-service -am clean package -DskipTests && \
     cp "$(ls scan-service/target/*.jar | grep -v -- '-plain\\.jar' | head -n1)" /workspace/app.jar
 
+# ---------- Trivy binary stage ----------
+FROM aquasec/trivy:0.67.2 AS trivy
+
 # ---------- Runtime stage ----------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# (a) Install Trivy
-RUN apt-get update && apt-get install -y ca-certificates curl wget && rm -rf /var/lib/apt/lists/* && \
-    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-      | sh -s -- -b /usr/local/bin v0.67.2
+# (a) Install Trivy binary from pinned image
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 
 # (b) Copy the service JAR
 COPY --from=build /workspace/app.jar /app/app.jar
