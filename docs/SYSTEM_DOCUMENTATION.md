@@ -468,6 +468,7 @@ Gateway-local aggregation endpoint:
 scan-service (`/api/v1/scans`):
 - `POST /api/v1/scans` - synchronous scan, returns normalized `ScanResult`
 - `POST /api/v1/scans/async` - schedules async scan, returns `ScanJobStatus` (202)
+- `GET /api/v1/scans/history?page=0&size=50&imageRef=...&minSeverity=...` - paged scan history
 - `GET /api/v1/scans/{scanId}?raw=false|true`
   - `raw=true` returns raw JSON stored by scan-service
 - `GET /api/v1/scans/jobs/{scanId}` - async job status
@@ -664,6 +665,7 @@ Scan persistence uses the `scan` schema and a normalized relational model:
 On retrieval:
 
 - `GET /api/v1/scans/{scanId}` checks Redis first, then falls back to DB.
+- `GET /api/v1/scans/history` reads directly from `scan.scans` for paged browsing.
 - On DB fallback, it writes the loaded scan back into the cache (best-effort).
 
 ### 9.4 Async scanning

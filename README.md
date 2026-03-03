@@ -99,6 +99,7 @@ Authentication note:
 
 ### End-to-end (gateway-only)
 - Image scan: `POST http://localhost:8080/api/v1/scans`
+- Scan history: `GET http://localhost:8080/api/v1/scans/history?page=0&size=50`
 - Image assessment: `POST http://localhost:8080/api/v1/assess/image`
 - QA question: `POST http://localhost:8080/api/v1/qa/question`
 - QA history: `GET http://localhost:8080/api/v1/qa/history`
