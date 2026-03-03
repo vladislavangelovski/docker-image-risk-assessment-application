@@ -12,6 +12,7 @@ import type {
   QaConversationHistoryItem,
   QaQuestionRequest,
   QaQuestionResponse,
+  ScanHistoryItem,
   ScanJobStatus,
   ScanResult
 } from "./types";
@@ -146,6 +147,19 @@ export const api = {
     requestJson<ScanResult | unknown>(
       `/api/v1/scans?imageRef=${encodeURIComponent(imageRef)}&raw=${raw}`
     ),
+  scanHistory: (page: number, size: number, imageRef?: string, minSeverity?: string) => {
+    const query = new URLSearchParams({
+      page: String(page),
+      size: String(size)
+    });
+    if (imageRef && imageRef.trim()) {
+      query.set("imageRef", imageRef.trim());
+    }
+    if (minSeverity && minSeverity !== "ALL") {
+      query.set("minSeverity", minSeverity);
+    }
+    return requestJson<Page<ScanHistoryItem>>(`/api/v1/scans/history?${query.toString()}`);
+  },
   scanJobStatus: (scanId: string) =>
     requestJson<ScanJobStatus>(`/api/v1/scans/jobs/${scanId}`),
   embeddingsIndex: (payload: EmbeddingsIndexRequest) =>

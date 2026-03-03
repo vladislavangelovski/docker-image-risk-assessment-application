@@ -201,6 +201,17 @@ export interface ScanResult {
   findings?: ScanFinding[];
 }
 
+export interface ScanHistoryItem {
+  scanId?: string;
+  image?: string;
+  scannerVersion?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  totalFindings?: number;
+  fixAvailable?: number;
+  maxSeverity?: Severity;
+}
+
 export type ScanJobState = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
 
 export interface ScanJobStatus {
