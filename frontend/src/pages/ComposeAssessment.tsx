@@ -203,19 +203,20 @@ export function ComposeAssessment() {
     <Stack spacing={3}>
       <PageHeader
         title="Compose Assessment"
-        subtitle="Upload a docker-compose.yml, scan for misconfigurations, and assess referenced images."
+        subtitle="Analyze docker-compose configuration risk and service image exposure in one run."
         icon={<DescriptionRoundedIcon sx={{ color: "var(--mint-500)" }} />}
       />
 
-      <Paper className="section-card">
+      <Paper className="hero-card compose-hero-card animate-rise">
         <Box component="form" onSubmit={handleSubmit}>
-          <Stack spacing={2} sx={{ p: 3 }}>
+          <Stack spacing={2} sx={{ p: { xs: 2.25, sm: 3 } }}>
+            <Typography className="kicker">Compose workflow</Typography>
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={1.5}
               alignItems={{ xs: "stretch", md: "center" }}
             >
-              <Button variant="outlined" component="label">
+              <Button variant="outlined" component="label" sx={{ width: { xs: "100%", sm: "fit-content" } }}>
                 Upload docker-compose.yml
                 <input
                   hidden
@@ -224,12 +225,25 @@ export function ComposeAssessment() {
                   onChange={handleUpload}
                 />
               </Button>
-              {fileName && <Chip label={fileName} variant="outlined" sx={{ alignSelf: "flex-start" }} />}
+              {fileName && (
+                <Chip
+                  label={fileName}
+                  variant="outlined"
+                  sx={{
+                    alignSelf: "flex-start",
+                    maxWidth: { xs: "100%", sm: 420 },
+                    "& .MuiChip-label": {
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }
+                  }}
+                />
+              )}
               <Box sx={{ flexGrow: 1 }} />
             </Stack>
 
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} sm={4} md={2}>
                 <TextField
                   fullWidth
                   label="Top K"
@@ -239,23 +253,20 @@ export function ComposeAssessment() {
                   helperText="Per image"
                 />
               </Grid>
-              <Grid item xs={12} md={10}>
+              <Grid item xs={12} sm={8} md={10}>
                 <Button
                   variant="contained"
                   type="submit"
                   disabled={loading}
                   startIcon={<RocketLaunchIcon />}
                   endIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
+                  fullWidth
+                  sx={{ justifyContent: { xs: "center", sm: "flex-start" } }}
                 >
                   {loading ? "Assessing…" : "Run compose assessment"}
                 </Button>
               </Grid>
             </Grid>
-
-            <Alert severity="info">
-              Image scanning can take a few minutes on the first run (image pull + Trivy DB warmup).
-              Subsequent scans are usually faster due to caching.
-            </Alert>
 
             <TextField
               fullWidth
@@ -264,10 +275,16 @@ export function ComposeAssessment() {
               value={composeYaml}
               onChange={(event) => setComposeYaml(event.target.value)}
               multiline
-              minRows={10}
+              minRows={9}
             />
 
             {error && <Alert severity="error">{error}</Alert>}
+
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {["Service graph analysis", "Config misconfiguration checks", "Image risk roll-up"].map((item) => (
+                <Chip key={item} label={item} size="small" variant="outlined" />
+              ))}
+            </Stack>
           </Stack>
         </Box>
       </Paper>
@@ -282,7 +299,7 @@ export function ComposeAssessment() {
 
       {result && (
         <Paper className="section-card">
-          <Stack spacing={2} sx={{ p: 3 }}>
+          <Stack spacing={2} sx={{ p: { xs: 2.25, sm: 3 } }}>
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={2}
@@ -313,7 +330,7 @@ export function ComposeAssessment() {
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                <Paper className="surface-card" sx={{ p: 2.5, borderRadius: 3 }}>
                   <Stack spacing={1.5}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       Compose config scan
@@ -353,7 +370,7 @@ export function ComposeAssessment() {
                       </Typography>
                     ) : (
                       <Box sx={{ overflowX: "auto" }}>
-                        <Table size="small" sx={{ minWidth: 720 }}>
+                        <Table className="interactive-table" size="small" sx={{ minWidth: 720 }}>
                           <TableHead>
                             <TableRow>
                               <TableCell sx={{ fontWeight: 700 }}>Severity</TableCell>
@@ -422,7 +439,7 @@ export function ComposeAssessment() {
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                <Paper className="surface-card" sx={{ p: 2.5, borderRadius: 3 }}>
                   <Stack spacing={1.5}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       Service images
@@ -434,7 +451,7 @@ export function ComposeAssessment() {
                       </Typography>
                     ) : (
                       <Box sx={{ overflowX: "auto" }}>
-                        <Table size="small" sx={{ minWidth: 720 }}>
+                        <Table className="interactive-table" size="small" sx={{ minWidth: 720 }}>
                           <TableHead>
                             <TableRow>
                               <TableCell sx={{ fontWeight: 700 }}>Service</TableCell>

@@ -278,7 +278,7 @@ export function AssessmentFollowUpChat({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+    <Paper className="section-card" sx={{ p: 2.5 }}>
       <Stack spacing={2}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -311,8 +311,8 @@ export function AssessmentFollowUpChat({
         </Stack>
 
         <Stack spacing={1}>
-          <Typography variant="caption" color="text.secondary">
-            Saved chats
+          <Typography className="kicker" sx={{ fontSize: "0.64rem" }}>
+            Saved threads
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap">
             {conversations.map((conversation) => (
@@ -323,7 +323,7 @@ export function AssessmentFollowUpChat({
                 onDelete={loading || historyLoading ? undefined : () => void deleteConversation(conversation.id)}
                 color={conversation.id === activeConversationId ? "primary" : "default"}
                 variant={conversation.id === activeConversationId ? "filled" : "outlined"}
-                sx={{ mb: 1 }}
+                sx={{ mb: 1, borderRadius: 999 }}
               />
             ))}
           </Stack>
@@ -331,8 +331,8 @@ export function AssessmentFollowUpChat({
 
         {!historyLoading && activeMessages.length === 0 && (
           <Typography variant="body2" color="text.secondary">
-            Ask for remediation ideas, rollout plans, or deeper explanation of findings. Chats are
-            saved server-side for continuation and deletion.
+            Ask for remediation sequencing, rollout strategy, or risk clarification. Conversation
+            history is stored server-side and can be reopened or deleted.
           </Typography>
         )}
 
@@ -342,25 +342,30 @@ export function AssessmentFollowUpChat({
             sx={{
               maxHeight: 420,
               overflowY: "auto",
-              pr: 0.5
+              pr: 0.5,
+              scrollbarGutter: "stable",
+              maskImage: "linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)"
             }}
           >
-            {activeMessages.map((message) => {
+            {activeMessages.map((message, index) => {
               const isUser = message.role === "user";
               return (
                 <Box
                   key={message.id}
                   sx={{
                     alignSelf: isUser ? "flex-end" : "flex-start",
-                    maxWidth: { xs: "100%", sm: "86%" }
+                    maxWidth: { xs: "100%", sm: "86%" },
+                    animation: "rise-in 320ms var(--ease-standard) both",
+                    animationDelay: `${Math.min(index * 40, 200)}ms`
                   }}
                 >
                   <Paper
-                    variant="outlined"
+                    className="surface-card"
                     sx={{
                       p: 1.5,
-                      borderRadius: 2.5,
-                      backgroundColor: isUser ? "rgba(30, 168, 150, 0.12)" : undefined
+                      borderRadius: 2.8,
+                      backgroundColor: isUser ? "rgba(168, 84, 47, 0.16)" : undefined
                     }}
                   >
                     <Typography
@@ -406,7 +411,7 @@ export function AssessmentFollowUpChat({
               multiline
               minRows={2}
               label="Ask a follow-up question"
-              placeholder="How should I prioritize fixes and roll them out safely?"
+              placeholder="Which fixes should ship first, and what rollback guardrails do you suggest?"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               disabled={loading || historyLoading}
@@ -418,11 +423,15 @@ export function AssessmentFollowUpChat({
                 disabled={loading || historyLoading || !draft.trim()}
                 startIcon={<SendRoundedIcon />}
                 endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+                sx={{
+                  transition:
+                    "transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard)"
+                }}
               >
                 {loading ? "Thinking…" : "Send"}
               </Button>
               <Typography variant="caption" color="text.secondary">
-                Context is enriched with this assessment and prior chat turns.
+                Replies use this assessment context and prior thread history.
               </Typography>
             </Stack>
           </Stack>

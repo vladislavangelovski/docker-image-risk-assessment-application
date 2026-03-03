@@ -121,12 +121,13 @@ export function CveLookup() {
     <Stack spacing={3}>
       <PageHeader
         title="CVE Lookup"
-        subtitle="Fetch CVE metadata, CVSS details, references, and the latest EPSS scores."
+        subtitle="Inspect CVE metadata, severity context, references, and recent EPSS trend."
         icon={<BugReportRoundedIcon sx={{ color: "var(--mint-500)" }} />}
       />
 
-      <Paper className="section-card">
+      <Paper className="hero-card animate-rise">
         <Stack spacing={2} sx={{ p: 3 }}>
+          <Typography className="kicker">Threat intelligence lookup</Typography>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
@@ -262,7 +263,7 @@ export function CveLookup() {
               )}
               <Stack spacing={1}>
                 {epssScores.map((score) => (
-                  <Paper key={score.id} sx={{ p: 2, borderRadius: 3 }}>
+                  <Paper key={score.id} className="surface-card" sx={{ p: 2, borderRadius: 3 }}>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                       <Typography variant="body2">Score: {score.score}</Typography>
                       <Typography variant="body2">Percentile: {score.percentile}</Typography>
@@ -284,7 +285,7 @@ export function CveLookup() {
 
       <Paper className="section-card">
         <Stack spacing={2} sx={{ p: 3 }}>
-          <Typography variant="h6">Browse CVE entries</Typography>
+          <Typography variant="h6">Browse CVE catalog</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
             <TextField
               label="Page size"
@@ -321,7 +322,7 @@ export function CveLookup() {
           {pageError && <Alert severity="error">{pageError}</Alert>}
           <Stack spacing={1}>
             {(pageData?.content || []).map((entry) => (
-              <Paper key={entry.cveId} sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={entry.cveId} className="surface-card" sx={{ p: 2, borderRadius: 3 }}>
                 <Stack spacing={1}>
                   <Typography variant="subtitle2">{entry.cveId}</Typography>
                   <Typography variant="body2" color="text.secondary" noWrap>

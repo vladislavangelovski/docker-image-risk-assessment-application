@@ -80,7 +80,7 @@ export function Dashboard() {
     <Stack spacing={4}>
       <PageHeader
         title="Dashboard"
-        subtitle="Demo shortcuts, inventory stats, and recently viewed items."
+        subtitle="Command center for assessments, CVE inventory, and active investigation threads."
         icon={<DashboardRoundedIcon sx={{ color: "var(--mint-500)" }} />}
         actions={
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
@@ -104,7 +104,7 @@ export function Dashboard() {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6} lg={6}>
-          <Paper className="section-card" sx={{ p: 3 }}>
+          <Paper className="section-card animate-rise" sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <BugReportRoundedIcon sx={{ color: "var(--amber-500)" }} />
@@ -127,7 +127,7 @@ export function Dashboard() {
                     {cveSummary?.totalElements?.toLocaleString() ?? "—"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Total CVE entries currently available for lookups and enrichment.
+                    Total indexed entries currently available for lookup and enrichment.
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
                     <Chip label={`${cveSummary?.totalPages ?? "—"} pages`} size="small" variant="outlined" />
@@ -140,7 +140,7 @@ export function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={6} lg={6}>
-          <Paper className="section-card" sx={{ p: 3 }}>
+          <Paper className="section-card animate-rise-delay" sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <ReceiptLongRoundedIcon sx={{ color: "var(--mint-500)" }} />
@@ -149,7 +149,7 @@ export function Dashboard() {
                 </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Pre-filled routes for quick walk-throughs and repeatable demos.
+                Pre-filled routes for repeatable walkthroughs and focused rehearsals.
               </Typography>
               <Stack spacing={1}>
                 <Button
@@ -183,16 +183,17 @@ export function Dashboard() {
       </Grid>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper className="hero-card" sx={{ p: 3 }}>
-            <Stack spacing={1.5}>
-              <Typography variant="h5" sx={{ fontWeight: 750 }}>
-                Explore risk with confidence.
+        <Grid item xs={12}>
+          <Paper className="hero-card dashboard-command-card" sx={{ p: { xs: 2.25, md: 3 } }}>
+            <Stack spacing={1.5} sx={{ maxWidth: { xs: "100%", lg: "62%" } }}>
+              <Typography className="kicker">Assessment workflow</Typography>
+              <Typography variant="h4" sx={{ lineHeight: 0.94 }}>
+                Move from scan output to action-ready remediation priorities.
               </Typography>
               <Typography color="text.secondary">
-                Assess images, inspect scans, and continue with evidence-backed follow-up chats
-                directly inside assessment results. Every screen keeps an audit trail with raw JSON
-                payloads for verification.
+                Run image and compose assessments, inspect findings, and continue the same thread
+                with follow-up questions backed by citations. Raw payloads stay one click away for
+                audit workflows.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <Button variant="contained" startIcon={<RocketLaunchIcon />} component={Link} to="/assess">
@@ -203,14 +204,17 @@ export function Dashboard() {
                 </Button>
               </Stack>
               <Stack direction="row" spacing={1} flexWrap="wrap">
-                {["Risk bands", "CVE + EPSS enrichment", "Citations", "Raw JSON audit"].map((item) => (
+                {["Risk bands", "EPSS-aware enrichment", "Citations", "Payload export"].map((item) => (
                   <Chip key={item} label={item} variant="outlined" size="small" />
                 ))}
               </Stack>
             </Stack>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={6}>
+      </Grid>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
           <Paper className="section-card" sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Typography variant="h6" sx={{ fontWeight: 750 }}>
@@ -218,14 +222,14 @@ export function Dashboard() {
               </Typography>
               {items.length === 0 ? (
                 <Typography color="text.secondary" variant="body2">
-                  No recent activity yet. Start with an image assessment or a CVE lookup.
+                  No activity yet. Start with an image assessment or a CVE lookup.
                 </Typography>
               ) : (
                 <Stack spacing={1}>
                   {items.slice(0, 6).map((item) => (
                     <Paper
                       key={item.id}
-                      variant="outlined"
+                      className="surface-card"
                       sx={{
                         p: 1.5,
                         borderRadius: 3,
@@ -243,7 +247,7 @@ export function Dashboard() {
                             borderRadius: 3,
                             display: "grid",
                             placeItems: "center",
-                            backgroundColor: "rgba(30, 168, 150, 0.12)"
+                            backgroundColor: "rgba(168, 84, 47, 0.14)"
                           }}
                         >
                           {activityIcon(item.kind)}

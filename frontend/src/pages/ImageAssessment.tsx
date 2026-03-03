@@ -163,13 +163,14 @@ export function ImageAssessment() {
     <Stack spacing={3}>
       <PageHeader
         title="Image Assessment"
-        subtitle="Run a full assessment (scan + enrichment + risk band) and review evidence."
+        subtitle="Scan, enrich, score, and triage a single image with evidence-first output."
         icon={<ShieldIcon sx={{ color: "var(--mint-500)" }} />}
       />
 
-      <Paper className="section-card">
+      <Paper className="hero-card animate-rise">
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2} sx={{ p: 3 }}>
+            <Typography className="kicker">Single image workflow</Typography>
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} md={6}>
                 <TextField
@@ -237,7 +238,7 @@ export function ImageAssessment() {
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={5}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                <Paper className="surface-card" sx={{ p: 2.5, borderRadius: 3 }}>
                   <Stack spacing={1.5}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       {result.band === "LOW" || result.band === "MEDIUM" ? (
@@ -250,7 +251,7 @@ export function ImageAssessment() {
                       </Typography>
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
-                      Review top findings and citations below. Use the raw JSON panel for auditability.
+                      Review the ranked findings and supporting citations below, then export the raw payload when needed.
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap">
                       <Chip
@@ -268,7 +269,7 @@ export function ImageAssessment() {
                 </Paper>
               </Grid>
               <Grid item xs={12} md={7}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                <Paper className="surface-card" sx={{ p: 2.5, borderRadius: 3 }}>
                   <Stack spacing={1.5}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       Top findings
@@ -279,7 +280,7 @@ export function ImageAssessment() {
                       </Typography>
                     ) : (
                       <Box sx={{ overflowX: "auto" }}>
-                        <Table size="small" sx={{ minWidth: 640 }}>
+                        <Table className="interactive-table" size="small" sx={{ minWidth: 640 }}>
                           <TableHead>
                             <TableRow>
                               <TableCell sx={{ fontWeight: 700 }}>CVE</TableCell>
@@ -366,7 +367,7 @@ export function ImageAssessment() {
             </Grid>
 
             {(result.citations || []).length > 0 && (
-              <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+              <Paper className="surface-card" sx={{ p: 2.5, borderRadius: 3 }}>
                 <Stack spacing={1.5}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     Citations
@@ -374,7 +375,7 @@ export function ImageAssessment() {
                   <Grid container spacing={2}>
                     {(result.citations || []).map((citation, index) => (
                       <Grid item xs={12} md={6} key={`${citation.cveId || "citation"}-${index}`}>
-                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, height: "100%" }}>
+                        <Paper className="surface-card" sx={{ p: 2, borderRadius: 3, height: "100%" }}>
                           <Stack spacing={1}>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <InsightsIcon sx={{ color: "var(--amber-500)" }} />

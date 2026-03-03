@@ -44,16 +44,17 @@ export function Login() {
 
   return (
     <Box sx={{ maxWidth: 520, mx: "auto", py: { xs: 6, md: 10 } }}>
-      <Paper className="section-card">
+      <Paper className="hero-card">
         <Stack spacing={3} sx={{ p: { xs: 3, md: 4 } }}>
+          <Typography className="kicker">Identity gateway</Typography>
           <Stack direction="row" spacing={1} alignItems="center">
             <LockRoundedIcon sx={{ color: "var(--mint-500)" }} />
-            <Typography variant="h5" sx={{ fontWeight: 750 }}>
+            <Typography variant="h4" sx={{ lineHeight: 0.96 }}>
               Sign in
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            Authenticate to access the Risk Assessment Console.
+            Authenticate to access the risk operations workspace.
           </Typography>
           {auth.error && <Alert severity="error">{auth.error}</Alert>}
           <Button
@@ -67,8 +68,7 @@ export function Login() {
             Sign in with Keycloak
           </Button>
           <Typography variant="caption" color="text.secondary">
-            After signing in, you can grant admin access by assigning the <code>admin</code> realm
-            role in Keycloak.
+            Admin access is controlled by the <code>admin</code> realm role in Keycloak.
           </Typography>
         </Stack>
       </Paper>

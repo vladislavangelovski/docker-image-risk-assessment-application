@@ -4,11 +4,14 @@ import { Link as RouterLink } from "react-router-dom";
 
 export function NotFound() {
   return (
-    <Paper className="section-card">
+    <Paper className="hero-card">
       <Stack spacing={2} sx={{ p: 4 }}>
-        <Typography variant="h4">Page not found</Typography>
+        <Typography className="kicker">Routing</Typography>
+        <Typography variant="h3" sx={{ lineHeight: 0.94 }}>
+          Page not found
+        </Typography>
         <Typography color="text.secondary">
-          The page you are looking for does not exist, or the link has changed.
+          The requested page does not exist or the route has changed.
         </Typography>
         <Button variant="contained" component={RouterLink} to="/">
           Go to dashboard
@@ -17,4 +20,3 @@ export function NotFound() {
     </Paper>
   );
 }
-

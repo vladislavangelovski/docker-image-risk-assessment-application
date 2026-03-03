@@ -89,16 +89,17 @@ export function AdminEmbeddings() {
     <Stack spacing={3}>
       <PageHeader
         title="Embeddings Admin"
-        subtitle="Index CVE embeddings and validate semantic retrieval quality."
+        subtitle="Index CVE embeddings and validate semantic retrieval relevance."
         icon={<MemoryIcon sx={{ color: "var(--mint-500)" }} />}
       />
 
       <Alert severity="warning">
-        Admin tools require the <code>admin</code> role. Use controlled environments and audit access.
+        This route requires the <code>admin</code> role. Restrict usage to controlled environments.
       </Alert>
 
-      <Paper className="section-card">
+      <Paper className="hero-card">
         <Stack spacing={2} sx={{ p: 3 }}>
+          <Typography className="kicker">Embedding operations</Typography>
           <Typography variant="h6" sx={{ fontWeight: 750 }}>
             Index embeddings
           </Typography>

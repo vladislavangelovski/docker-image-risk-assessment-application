@@ -42,7 +42,7 @@ export function JsonPanel({ data, title = "Raw JSON" }: JsonPanelProps) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+    <Paper className="surface-card" sx={{ overflow: "hidden" }}>
       <Stack
         direction="row"
         spacing={1}
@@ -50,9 +50,14 @@ export function JsonPanel({ data, title = "Raw JSON" }: JsonPanelProps) {
         justifyContent="space-between"
         sx={{ px: 2, py: 1.5 }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
+        <Stack spacing={0.2}>
+          <Typography className="kicker" sx={{ fontSize: "0.64rem" }}>
+            Audit payload
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+        </Stack>
         <Stack direction="row" spacing={0.5} alignItems="center">
           <Tooltip title={copied ? "Copied" : "Copy JSON"}>
             <span>
@@ -70,7 +75,7 @@ export function JsonPanel({ data, title = "Raw JSON" }: JsonPanelProps) {
           </Tooltip>
         </Stack>
       </Stack>
-      <Box component="pre" className="json-block" sx={{ m: 0, borderRadius: 0 }}>
+      <Box component="pre" className="json-block" sx={{ m: 0 }}>
         {formatted}
       </Box>
     </Paper>

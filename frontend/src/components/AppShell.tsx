@@ -38,14 +38,15 @@ import { useColorMode } from "../theme/colorMode";
 import { API_BASE_URL } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 
-const drawerWidth = 288;
+const drawerWidth = 312;
+const drawerWidthMobile = 272;
 
 const baseNavItems = [
   { label: "Dashboard", to: "/", icon: <DashboardRoundedIcon />, end: true },
-  { label: "Assess Image", to: "/assess", icon: <ShieldRoundedIcon /> },
+  { label: "Image Risk", to: "/assess", icon: <ShieldRoundedIcon /> },
   { label: "Assess Compose", to: "/assess/compose", icon: <DescriptionRoundedIcon /> },
   { label: "CVE Lookup", to: "/cves", icon: <BugReportRoundedIcon /> },
-  { label: "Scans", to: "/scans", icon: <ReceiptLongRoundedIcon /> }
+  { label: "Scan History", to: "/scans", icon: <ReceiptLongRoundedIcon /> }
 ];
 
 function NavItem({
@@ -70,11 +71,17 @@ function NavItem({
           <ListItemButton
             selected={isActive}
             sx={{
-              borderRadius: 3,
-              mx: 1,
-              my: 0.25,
+              borderRadius: 3.5,
+              mx: 1.1,
+              my: 0.35,
+              transition:
+                "transform var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard)",
               "&.Mui-selected": {
-                backgroundColor: "rgba(30, 168, 150, 0.14)"
+                backgroundColor: "rgba(168, 84, 47, 0.2)",
+                boxShadow: "inset 0 0 0 1px rgba(168, 84, 47, 0.24)"
+              },
+              "&:hover": {
+                transform: "translateX(2px)"
               }
             }}
           >
@@ -116,45 +123,51 @@ export function AppShell() {
 
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Stack spacing={0.5} sx={{ px: 2.5, py: 2.25 }}>
-        <Typography variant="subtitle2" sx={{ letterSpacing: "0.08em", opacity: 0.7 }}>
-          RISK CONSOLE
-        </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
+      <Stack spacing={0.8} sx={{ px: 2.75, pt: 3, pb: 2.25 }}>
+        <Typography className="kicker">Risk Desk</Typography>
+        <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
           Docker Image Risk Assessment
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Evidence-backed exposure insights
+        <Typography variant="body2" color="text.secondary">
+          Exposure intelligence with traceable evidence.
         </Typography>
       </Stack>
-      <Divider sx={{ mx: 2 }} />
+      <Divider sx={{ mx: 2.2 }} />
       <List sx={{ px: 1, py: 1 }}>
         {navItems.map((item) => (
           <NavItem key={item.to} {...item} />
         ))}
       </List>
       <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ px: 2.5, pb: 2.5 }}>
+      <Box sx={{ px: 2.75, pb: 2.5 }}>
         <Divider sx={{ mb: 2 }} />
-        <Typography variant="caption" color="text.secondary">
-          © {new Date().getFullYear()} Risk Assessment Console
+        <Typography className="kicker" sx={{ mb: 0.6, fontSize: "0.66rem" }}>
+          Contract boundary
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+          Gateway-first frontend
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.1 }}>
+          © {new Date().getFullYear()} Risk Console
         </Typography>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Box className="editorial-shell" sx={{ display: "flex", minHeight: "100vh" }}>
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
           backgroundColor:
-            mode === "dark" ? "rgba(11, 16, 32, 0.78)" : "rgba(248, 245, 240, 0.82)",
+            mode === "dark" ? "rgba(16, 21, 30, 0.72)" : "rgba(252, 245, 237, 0.7)",
           borderBottom:
             mode === "dark"
-              ? "1px solid rgba(210, 220, 255, 0.12)"
-              : "1px solid rgba(17, 26, 47, 0.08)",
+              ? "1px solid rgba(243, 227, 208, 0.1)"
+              : "1px solid rgba(102, 78, 60, 0.14)",
           backdropFilter: "blur(16px)",
           color: "inherit"
         }}
@@ -164,23 +177,61 @@ export function AppShell() {
             display: "flex",
             justifyContent: "space-between",
             gap: 2,
-            minHeight: 72
+            minHeight: { xs: 66, sm: 74 }
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, overflow: "hidden" }}>
             {!isDesktop && (
-              <IconButton onClick={toggleDrawer} aria-label="Open navigation">
+              <IconButton
+                onClick={toggleDrawer}
+                aria-label="Open navigation"
+                sx={{
+                  backgroundColor: "rgba(168, 84, 47, 0.12)",
+                  "&:hover": { backgroundColor: "rgba(168, 84, 47, 0.2)" }
+                }}
+              >
                 <MenuRoundedIcon />
               </IconButton>
             )}
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Risk Assessment Console
-            </Typography>
+            <Box sx={{ minWidth: 0, maxWidth: { sm: "min(56vw, 540px)" } }}>
+              <Typography className="kicker" sx={{ fontSize: "0.63rem", mb: 0.4, display: { xs: "none", sm: "inline-block" } }}>
+                Operations view
+              </Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 700, display: { xs: "none", lg: "block" } }}
+                noWrap
+              >
+                Vulnerability and Misconfiguration Workbench
+              </Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, display: { xs: "block", lg: "none" } }}>
+                Risk Workbench
+              </Typography>
+            </Box>
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={{ xs: 0.45, sm: 0.75 }} alignItems="center">
             <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-              <IconButton onClick={toggleMode} aria-label="Toggle color mode">
+              <IconButton
+                onClick={toggleMode}
+                aria-label="Toggle color mode"
+                sx={{
+                  backgroundColor: "rgba(168, 84, 47, 0.12)",
+                  "&:hover": { backgroundColor: "rgba(168, 84, 47, 0.2)" }
+                }}
+              >
                 {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="About the console">
+              <IconButton
+                onClick={() => setAboutOpen(true)}
+                aria-label="About"
+                sx={{
+                  backgroundColor: "rgba(168, 84, 47, 0.12)",
+                  "&:hover": { backgroundColor: "rgba(168, 84, 47, 0.2)" }
+                }}
+              >
+                <InfoOutlinedIcon />
               </IconButton>
             </Tooltip>
             {auth.initialized &&
@@ -189,24 +240,30 @@ export function AppShell() {
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ display: { xs: "none", sm: "block" } }}
+                    sx={{ display: { xs: "none", sm: "block" }, maxWidth: 240 }}
+                    noWrap
                   >
                     {auth.user?.username || auth.user?.email || "Signed in"}
                   </Typography>
                   <Button variant="outlined" size="small" onClick={auth.logout}>
-                    Sign out
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                      Sign out
+                    </Box>
+                    <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                      Out
+                    </Box>
                   </Button>
                 </>
               ) : (
                 <Button variant="contained" size="small" onClick={auth.login}>
-                  Sign in
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    Sign in
+                  </Box>
+                  <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                    Enter
+                  </Box>
                 </Button>
               ))}
-            <Tooltip title="About">
-              <IconButton onClick={() => setAboutOpen(true)} aria-label="About">
-                <InfoOutlinedIcon />
-              </IconButton>
-            </Tooltip>
           </Stack>
         </Toolbar>
       </AppBar>
@@ -222,13 +279,11 @@ export function AppShell() {
                 boxSizing: "border-box",
                 borderRight:
                   mode === "dark"
-                    ? "1px solid rgba(210, 220, 255, 0.12)"
-                    : "1px solid rgba(17, 26, 47, 0.08)",
+                    ? "1px solid rgba(243, 227, 208, 0.12)"
+                    : "1px solid rgba(111, 86, 66, 0.16)",
                 backgroundColor:
-                  mode === "dark"
-                    ? "rgba(13, 18, 34, 0.72)"
-                    : "rgba(255, 255, 255, 0.74)",
-                backdropFilter: "blur(18px)"
+                  mode === "dark" ? "rgba(18, 23, 32, 0.68)" : "rgba(255, 248, 238, 0.68)",
+                backdropFilter: "blur(14px)"
               }
             }}
           >
@@ -242,12 +297,10 @@ export function AppShell() {
             ModalProps={{ keepMounted: true }}
             sx={{
               "& .MuiDrawer-paper": {
-                width: drawerWidth,
+                width: { xs: drawerWidthMobile, sm: drawerWidth },
                 boxSizing: "border-box",
                 backgroundColor:
-                  mode === "dark"
-                    ? "rgba(13, 18, 34, 0.92)"
-                    : "rgba(255, 255, 255, 0.92)"
+                  mode === "dark" ? "rgba(18, 23, 32, 0.96)" : "rgba(255, 248, 238, 0.96)"
               }
             }}
           >
@@ -261,8 +314,8 @@ export function AppShell() {
         sx={{
           flexGrow: 1,
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          pt: 10,
-          pb: 6
+          pt: 11,
+          pb: 7
         }}
       >
         <Container maxWidth="xl">
@@ -271,7 +324,7 @@ export function AppShell() {
               <Stack spacing={2} alignItems="center" sx={{ py: 10 }}>
                 <CircularProgress />
                 <Typography variant="body2" color="text.secondary">
-                  Loading…
+                  Loading workspace...
                 </Typography>
               </Stack>
             }
@@ -282,12 +335,12 @@ export function AppShell() {
       </Box>
 
       <Dialog open={aboutOpen} onClose={() => setAboutOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>About</DialogTitle>
+        <DialogTitle>About this console</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ py: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Production-ready console for Docker image assessments, CVE lookups, scan inspection,
-              and QA with citations.
+              This workspace combines image and compose assessment, CVE context, scan inspection,
+              and follow-up analysis in one operational UI.
             </Typography>
             <Box>
               <Typography variant="subtitle2">API Base URL</Typography>
